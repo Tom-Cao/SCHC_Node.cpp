@@ -2,8 +2,7 @@
 
 LoRaWAN_RAK4631::LoRaWAN_RAK4631()
 {
-    m_lora_app_data_buffer[LORAWAN_APP_DATA_BUFF_SIZE];            //< Lora user application data buffer.
-    m_lora_app_data = {m_lora_app_data_buffer, 0, 0, 0, 0}; //< Lora user application data structure.
+
 }
 
 uint8_t LoRaWAN_RAK4631::initialize_stack(void)
@@ -42,7 +41,8 @@ uint8_t LoRaWAN_RAK4631::initialize_stack(void)
     #define JOINREQ_NBTRIALS            3						/* *< Number of trials for the join request. */
     _doOTAA                             = true;                 /* OTAA is used by default. */
     DeviceClass_t g_CurrentClass        = CLASS_A;				/* class definition*/
-    LoRaMacRegion_t g_CurrentRegion     = LORAMAC_REGION_AU915; /* Region:EU868*/
+    LoRaMacRegion_t g_CurrentRegion     LORAMAC_REGION_AU915; /* Region:EU868*/
+    #define LORAWAN_APP_DATA_BUFF_SIZE 300
 
     g_lora_param_init    = {LORAWAN_ADR_OFF, 
                                         LORAWAN_DATERATE, 
@@ -53,9 +53,10 @@ uint8_t LoRaWAN_RAK4631::initialize_stack(void)
 
     // ************** Setup the EUIs and Keys *******************
     //OTAA keys !!!! KEYS ARE MSB !!!!
-    uint8_t nodeDeviceEUI[8] = {0xAC, 0x1F, 0x09, 0xFF, 0xFE, 0x0C, 0xEF, 0xD0};
-    uint8_t nodeAppEUI[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01};
-    uint8_t nodeAppKey[16] = {0x28, 0xE4, 0xCB, 0x60, 0x68, 0x05, 0x45, 0x14, 0x96, 0xEC, 0x2D, 0x13, 0x91, 0x11, 0x82, 0xB8};
+    uint8_t nodeDeviceEUI[8] = {0xAC, 0x1F, 0x09, 0xFF, 0xFE, 0x0C, 0xEF, 0xD0};    // AC1F09FFFE0CEFD0
+    uint8_t nodeAppEUI[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01};   // 0000000000000001
+    uint8_t nodeAppKey[16] = {0xB1, 0xB0, 0x97, 0x92, 0x50, 0x17, 0xFB, 0xA7, 0x4F, 0xBA, 0x53, 0x69, 0x00, 0xC7, 0x6C, 0xAC};  // B1B097925017FBA74FBA536900C76CAC
+
 
     // ABP keys
     uint32_t nodeDevAddr = 0x260116F8;
@@ -158,11 +159,9 @@ uint8_t LoRaWAN_RAK4631::initialize_stack(void)
 
 uint8_t LoRaWAN_RAK4631::send_frame(uint8_t ruleID, char* msg, int len)
 {
-
     // ************** Private definitions **************
-    memset(m_lora_app_data.buffer, 0, LORAWAN_APP_DATA_BUFF_SIZE);
-    lmh_confirm g_CurrentConfirm        = LMH_UNCONFIRMED_MSG;  /* confirm/unconfirm packet definition*/
-    uint8_t gAppPort                    = ruleID;     /* data port*/
+    uint8_t m_lora_app_data_buffer[LORAWAN_APP_DATA_BUFF_SIZE];			  ///< Lora user application data buffer.
+    lmh_app_data_t m_lora_app_data = {m_lora_app_data_buffer, 0, 0, 0, 0}; ///< Lora user application data structure.
 
     if (lmh_join_status_get() != LMH_SET)
     {
@@ -171,14 +170,15 @@ uint8_t LoRaWAN_RAK4631::send_frame(uint8_t ruleID, char* msg, int len)
         return 1;
     }
 
-    m_lora_app_data.port = gAppPort;
-    m_lora_app_data.buffsize = len;
+    //m_lora_app_data.port = LORAWAN_APP_PORT;
+    m_lora_app_data.port = ruleID;
     for(int i=0; i<len; i++)
     {
         m_lora_app_data.buffer[i] = (uint8_t)msg[i];
     }
+    m_lora_app_data.buffsize = len;
 
-    lmh_error_status error = lmh_send_blocking(&m_lora_app_data, g_CurrentConfirm,10000);
+    lmh_error_status error = lmh_send_blocking(&m_lora_app_data, LMH_UNCONFIRMED_MSG,10000);
     if (error == LMH_SUCCESS)
     {
         char myBuffer[30];
@@ -208,7 +208,31 @@ uint8_t LoRaWAN_RAK4631::send_frame(uint8_t ruleID, char* msg, int len)
     }
 
 
-     
+     return 0;
+}
+
+int LoRaWAN_RAK4631::getMtu(bool consider_Fopt)
+{
+    int fOpt = 0;   
+    if(consider_Fopt)
+    {
+        fOpt = 15;  // 15 bytes is the max
+    }
+    
+    if(LORAWAN_DATERATE==DR_0 || LORAWAN_DATERATE==DR_1 || LORAWAN_DATERATE==DR_2)
+    {
+        return 51 - fOpt;
+    }
+    else if(LORAWAN_DATERATE==DR_3)
+    {
+        return 115 - fOpt;   
+    }
+    else if(LORAWAN_DATERATE==DR_4 || LORAWAN_DATERATE==DR_5)
+    {
+        return 222 - fOpt;   
+    }
+
+    return -1;
 }
 
 void LoRaWAN_RAK4631::lorawan_has_joined_handler(void)

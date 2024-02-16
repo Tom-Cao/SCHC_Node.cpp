@@ -20,7 +20,7 @@ uint8_t SCHC_Ack_on_error::init(uint8_t ruleID, uint8_t dTag, uint8_t windowSize
     _ackMode = ackMode;
 
     /* Static LoRaWAN parameters*/
-    _current_L2_MTU = 51;   //SF12
+    _current_L2_MTU = stack_ptr->getMtu(true);   //SF12
     _stack = stack_ptr;
 
 #ifndef MYDEBUG

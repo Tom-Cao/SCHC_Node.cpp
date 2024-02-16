@@ -1,11 +1,9 @@
 #ifndef LoRaWAN_RAK4631_hpp
 #define LoRaWAN_RAK4631_hpp
 
-#include <LoRaWan-Arduino.h>
+#include <LoRaWan-RAK4630.h>
 #include "SCHC_Stack_L2.hpp"
 #include "SCHC_Macros.hpp"
-
-#define LORAWAN_APP_DATA_BUFF_SIZE 64                     /**< buffer size of the data to be transmitted. */
 
 class LoRaWAN_RAK4631: public SCHC_Stack_L2
 {
@@ -13,6 +11,7 @@ class LoRaWAN_RAK4631: public SCHC_Stack_L2
         LoRaWAN_RAK4631();
         virtual uint8_t initialize_stack(void);
         virtual uint8_t send_frame(uint8_t ruleID, char* msg, int len);
+        virtual int getMtu(bool consider_Fopt);
         static void lorawan_has_joined_handler(void);
         static void lorawan_join_failed_handler(void);
         static void lorawan_rx_handler(lmh_app_data_t *app_data);
