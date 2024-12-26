@@ -3,7 +3,7 @@
 #include "Ticker.h" 
 
 
-/**************** Ticker ************************/
+/*** Ticker ***/
 void periodicWakeup();
 Ticker myTicker(periodicWakeup, 20000);  // Periodic callback each 20000 milliseconds
 int counter = 0;
