@@ -49,45 +49,58 @@ https://code.visualstudio.com/
 
 ###  3.2. <a name='PlatformIO'></a>PlatformIO
 
-PlatformIO is a cross-platform, cross-architecture, multiple framework, professional tool for embedded systems engineers and for software developers who write applications for embedded products.
+PlatformIO is a cross-platform, cross-architecture, multiple framework for embedded systems engineers and for software developers who write applications for embedded products. PlatformIO is used to deploy code in RAKWireless boards and it is used in VSCode through an extension. To install PlatformIO in VSCode and add support to RAKWireless boards follow the below steps:
 
-PlatformIO is used in VSCode through an extension. To install PlatformIO in VSCode follow the steps in this [link](https://docs.platformio.org/en/latest/integration/ide/vscode.html#installation).
+ * **Step 1:** 
+   1. ***Open*** VSCode Package Manager.
+   2. ***Search*** for the official platformio ide extension.
+   3. ***Install*** PlatformIO IDE.
 
-###  3.3. <a name='RAKWirelessBoards'></a> RAKWireless Board Support Package
+<img src="https://docs.platformio.org/en/latest/_images/platformio-ide-vscode-pkg-installer.png" alt="Description" width="600">
 
-To deploy software on the RAK4631 board you need to configure PlatformIO. In the following [link](https://learn.rakwireless.com/hc/en-us/articles/26687276346775-How-To-Perform-Installation-of-Board-Support-Package-in-PlatformIO) you can find how to perform installation of Board Support Package in PlatformIO.
+ * **Step 2:** After installing PlatformIO, you can see the PlatformIO icon (the ant icon). Open it and wait for initialisation process.
+
+<img src="https://learn.rakwireless.com/hc/article_attachments/26687299168151" alt="Description" width="600">
+
+ * **Step 3:** In the new window, select *Quick Access > PIO Home > Platforms > Embedded*. ***Search*** Nordic nRF52 and ***install*** it.
+
+<img src="https://learn.rakwireless.com/hc/article_attachments/26687299168535" alt="Description" width="600">
+
+ * **Step 4:** ***Close*** VSCode.
+
+ * **Step 5:** PlatformIO needs to be update with RAKWireless Boards Support Package. For this, you need download the patch file called RAK_PATCH. ***Download*** RAK_PATCH.zip from the below link:
+
+[https://raw.githubusercontent.com/RAKWireless/WisBlock/master/PlatformIO/RAK_PATCH.zip](https://raw.githubusercontent.com/RAKWireless/WisBlock/master/PlatformIO/RAK_PATCH.zip) 
+
+ * **Step 6:** ***Save*** the RAK_PATH.zip in the PlatformIO installation folder (depending on the operating system):
+
+|PlatformIO installation folder paths|| 
+|-------|--------|	 
+|Windows| ```%USER%\.platformio\``` |
+|Linux| 	```~/.platformio/``` |
+|MacOS| 	```/Users/{Your_User_id}/. platformio/``` |
+
+ * **Step 7:** ***Unzip*** the contents of RAK_PATCH.zip into folder **RAK_PATCH** in your PlatformIO installation folder.
+
+ * **Step 8:** ***Open*** a terminal (e.g. Window terminal or PowerShell for Window). Go to the **RAK_PATCH** folder into PlatformIO installation folder. ***Execute*** the below comand:
+
+``` python ./rak_patch.py```
+
+> NOTE: This script update the PlatformIO with the RAK4631 board.
+
+
 
  
 ##  Setting up the deployment environment
 
-Before deploying, you must have the tools from the previous point installed. Then you must follow the next steps to configure your deployment environment.
+To deploy code in RAK4631 you must create your workspace with SCHC node code. Follow the below steps:
 
-### Step 1: Create you workspace
+ * **Step 1:** ***Open*** VSCode.
+ * **Step 2:** ***Select*** the Clone Git Repository. Use the below url to download *SCHC node* code:
 
-To create your workspace you need to download the SCHC node source code. Open VSCode and click on ***Clone Git Repository***. In the *repository url* use the follow link:
+[https://github.com/RodrigoMunozLara/SCHC_Node.cpp.git](https://github.com/RodrigoMunozLara/SCHC_Node.cpp.git)
 
-```https://github.com/RodrigoMunozLara/SCHC_Node.cpp.git```
 
 > **Note:** We assume you have configured Git source control in VS Code. If you haven't done so yet, click [here](https://code.visualstudio.com/docs/sourcecontrol/overview).
-
-### Step 2: Pick a folder in PlatformIO
-
-To develop code with PlatformIO over VSCode you must create a new project or pick a folder. SCHC node include a *platformio.ini* file that you can use it. For this, click in PlatformIO icon in VSCode and select 
-
-### Step 3: Install the libraries
-
-SCHC node uses some libraries to work with timers and SX126x chipset for Arduino. The libraries are installed in PlatformIO
-
-
- The deploy process is very simple. The deploy assumes that you are using PlatformIO over VSCode and you already have PlatformIO configured for a RAK4631 board.
-
-
-
- Before doing a deploy it is necessary that you install the following libraries on platformIO. 
- 
-  * sstaub/Ticker@^4.4.0
-  * beegee-tokyo/SX126x-Arduino@^2.0.23
- 
- To find out how to install a library in PlatformIO, follow this link
 
 
