@@ -41,7 +41,7 @@ uint8_t LoRaWAN_RAK4631::initialize_stack(void)
     #define JOINREQ_NBTRIALS            3						/* *< Number of trials for the join request. */
     _doOTAA                             = true;                 /* OTAA is used by default. */
     DeviceClass_t g_CurrentClass        = CLASS_A;				/* class definition*/
-    LoRaMacRegion_t g_CurrentRegion     LORAMAC_REGION_AU915; /* Region:EU868*/
+    LoRaMacRegion_t g_CurrentRegion     = LORAMAC_REGION_AU915; /* Region:EU868*/
     #define LORAWAN_APP_DATA_BUFF_SIZE 300
 
     g_lora_param_init    = {LORAWAN_ADR_OFF, 

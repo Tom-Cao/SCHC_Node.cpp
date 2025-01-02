@@ -61,6 +61,7 @@ uint8_t SCHC_Fragmenter_End_Device::send(char *buffer, int len)
     {
         SCHC_Session_End_Device us = _uplinkSessionPool[id];
         us.startFragmentation(buffer, len);
+        us.clearIsUsed();
     }
 
 #ifndef MYDEBUG

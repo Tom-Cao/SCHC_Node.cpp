@@ -14,20 +14,22 @@ uint8_t SCHC_Session_End_Device::initialize(uint8_t protocol, uint8_t direction,
 
     if(direction==SCHC_FRAG_DIRECTION_UPLINK && protocol==SCHC_FRAG_PROTOCOL_LORAWAN)
     {
+        // SCHC session initialisation with LoRaWAN profile parameters (see RFC9011)
         _protocol = SCHC_FRAG_PROTOCOL_LORAWAN;
         _direction = SCHC_FRAG_DIRECTION_UPLINK;
         _ruleID = 20;
         _dTag = dTag;
-        _tileSize = 10;                         // bytes
-        _m = 2;                                 // bits del campo W
-        _n = 6;                                 // bits del campo FCN
-        _windowSize = 63;                       // tiles
-        _t = 0;                                 // bits del campo DTag
-        _maxAckReq = 8;
-        _retransTimer = 12*60*60;               // seconds
-        _inactivityTimer = 12*60*60;            // seconds
-        _maxMsgSize = _tileSize*_windowSize*4;  // bytes
-        _stack = stack_ptr;
+        _tileSize = 10;                         // tile size in bytes
+        _m = 2;                                 // bits of the W field
+        _n = 6;                                 // bits of the FCN field
+        _windowSize = 63;                       // tiles in a SCHC window
+        _t = 0;                                 // bits of the DTag field
+        _maxAckReq = 8;                         // max number of ACK Request msg
+        _retransTimer = 12*60*60;               // Retransmission timer in seconds
+        _inactivityTimer = 12*60*60;            // Inactivity timer in seconds
+        _maxMsgSize = _tileSize*_windowSize*4;  // Maximum size of a SCHC packet in bytes
+        _stack = stack_ptr;                     // Pointer to L2 stack
+        _txAttemptsCounter = 0;                 // transmission attempt counter
     }
     else if(direction==SCHC_FRAG_DIRECTION_DOWNLINK && protocol==SCHC_FRAG_PROTOCOL_LORAWAN)
     {
@@ -35,16 +37,16 @@ uint8_t SCHC_Session_End_Device::initialize(uint8_t protocol, uint8_t direction,
         _direction = SCHC_FRAG_DIRECTION_DOWNLINK;
         _ruleID = 21;
         _dTag = dTag;
-        _tileSize = 0;                         /* 5.6.3. Downlink Fragmentation: From SCHC Gateway to Device: As only one tile is used, its size can change for each downlink and will be the currently available MTU. */
-        _m = 1;                                 // bits
-        _n = 1;                                 // bits
-        _windowSize = 1;                        // tiles
-        _t = 0;                                 // bits
+        _tileSize = 0;                          // tile size in bytes
+        _m = 1;                                 // bits of the W field
+        _n = 1;                                 // bits of the FCN field
+        _windowSize = 1;                        // tiles in a SCHC window
+        _t = 0;                                 // bits of the DTag field
         _maxAckReq = 8;
-        _retransTimer = 12*60*60;               // seconds
-        _inactivityTimer = 12*60*60;            // seconds
-        _maxMsgSize = _tileSize*_windowSize*2;  // bytes
-        _stack = stack_ptr;
+        _retransTimer = 12*60*60;               // Retransmission timer in seconds
+        _inactivityTimer = 12*60*60;            // Inactivity timer in seconds
+        _maxMsgSize = _tileSize*_windowSize*2;  // Maximum size of a SCHC packet in bytes
+        _stack = stack_ptr;                     // Pointer to L2 stack
     }
 #ifndef MYDEBUG
     Serial.println("SCHC_Session_End_Device::initialize - Leaving the function");
@@ -78,22 +80,14 @@ uint8_t SCHC_Session_End_Device::startFragmentation(char *buffer, int len)
             Serial.println(buf);
             return 1;
         }
-
-        _txAttemptsCounter = 0;
     }
 
-    /* Creando maquina de estado*/
+    /* Creando y inicializando maquina de estado*/
     uint8_t res = createStateMachine();
     if(res==1)
     {
         Serial.println("SCHC_Session_End_Device::startFragmentation - ERROR: Unable to create state machine");
     }
-
-    /* Inicializando maquina de estado */
-    _stateMachine->init(_ruleID, _dTag, _windowSize, _tileSize, _n, ACK_MODE_ACK_END_WIN, _stack);
-#ifndef MYINFO
-    Serial.println("SCHC_Session_End_Device::startFragmentation - State machine successfully initialized");
-#endif
 
     /* Arrancando maquina de estado con el primer mensaje */
     _stateMachine->start(buffer, len);
@@ -118,8 +112,12 @@ uint8_t SCHC_Session_End_Device::createStateMachine()
     if(_protocol==SCHC_FRAG_PROTOCOL_LORAWAN && _direction==SCHC_FRAG_DIRECTION_UPLINK)
     {
         _stateMachine = new SCHC_Ack_on_error();
+
+        /* Inicializando maquina de estado */
+        _stateMachine->init(_ruleID, _dTag, _windowSize, _tileSize, _n, ACK_MODE_ACK_END_WIN, _stack);
+
 #ifndef MYINFO
-        Serial.println("SCHC_Session_End_Device::createStateMachine - State machine successfully created");
+        Serial.println("SCHC_Session_End_Device::createStateMachine - State machine successfully created, initiated, and started");
 #endif
 
 #ifndef MYDEBUG
@@ -128,4 +126,9 @@ uint8_t SCHC_Session_End_Device::createStateMachine()
         return 0;
     }
     return 1;
+}
+
+void SCHC_Session_End_Device::clearIsUsed()
+{
+    _isUsed = false;
 }

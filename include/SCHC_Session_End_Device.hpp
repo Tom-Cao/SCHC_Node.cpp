@@ -16,6 +16,7 @@ class SCHC_Session_End_Device
         uint8_t startFragmentation(char *buffer, int len);
         bool isUsed();
         uint8_t getDTag();
+        void clearIsUsed();
     private:
         uint8_t createStateMachine();
         bool _isUsed;
@@ -23,17 +24,17 @@ class SCHC_Session_End_Device
         uint8_t _direction;
         uint8_t _ruleID;
         uint8_t _dTag;
-        uint8_t _tileSize;              // in bytes
-        uint8_t _m;                     // in bits
-        uint8_t _n;                     // in bits
-        uint8_t _windowSize;            // in tiles
-        uint8_t _t;                     // in bits
-        uint8_t _maxAckReq;
-        int _retransTimer;          // in seconds
-        int _inactivityTimer;       // in seconds
-        uint8_t _txAttemptsCounter;
-        uint8_t _rxAttemptsCounter;
-        int _maxMsgSize;               // in bytes
+        uint8_t _tileSize;              // tile size in bytes
+        uint8_t _m;                     // bits of the W field
+        uint8_t _n;                     // bits of the FCN field
+        uint8_t _windowSize;            // tiles in a SCHC window
+        uint8_t _t;                     // bits of the DTag field
+        uint8_t _maxAckReq;             // max number of ACK Request msg
+        int _retransTimer;              // Retransmission timer in seconds
+        int _inactivityTimer;           // Inactivity timer in seconds
+        uint8_t _txAttemptsCounter;     // transmission attempt counter
+        uint8_t _rxAttemptsCounter;     // reception attempt counter
+        int _maxMsgSize;                // Maximum size of a SCHC packet in bytes
         SCHC_State_Machine* _stateMachine;
         SCHC_Stack_L2* _stack;
 };

@@ -20,44 +20,13 @@ uint8_t SCHC_Ack_on_error::init(uint8_t ruleID, uint8_t dTag, uint8_t windowSize
     _ackMode = ackMode;
 
     /* Static LoRaWAN parameters*/
-    _current_L2_MTU = stack_ptr->getMtu(true);   //SF12
+    _current_L2_MTU = stack_ptr->getMtu(false);   //SF12
     _stack = stack_ptr;
 
 #ifndef MYDEBUG
     Serial.println("SCHC_Ack_on_error::init - Leaving the function");
 #endif
 
-    return 0;
-}
-
-uint8_t SCHC_Ack_on_error::execute(char *msg, int len)
-{
-#ifndef MYDEBUG
-    Serial.println("SCHC_Ack_on_error::execute - Entering the function");
-#endif
-    if(msg!=NULL)
-    {
-        // definir decoder para recepcion de mensajes
-    }
-    else
-    {
-        if(_currentState==STATE_TX_INIT)
-        {
-            Serial.println("SCHC_Ack_on_error::execute - ERROR: you cannot call the execute() method in STATE_TX_INIT");
-        }
-        else if(_currentState==STATE_TX_SEND)
-        {
-            this->TX_SEND_send_fragment();
-        }
-        else if(_currentState==STATE_TX_WAIT_x_ACK)
-        {
-            return 1;
-        }
-    }
-
-#ifndef MYDEBUG
-    Serial.println("SCHC_Ack_on_error::execute - Leaving the function");
-#endif
     return 0;
 }
 
@@ -105,6 +74,37 @@ uint8_t SCHC_Ack_on_error::start(char *buffer, int len)
     Serial.println("SCHC_Ack_on_error::start - Leaving the function");
 #endif
     return res;
+}
+
+uint8_t SCHC_Ack_on_error::execute(char *msg, int len)
+{
+#ifndef MYDEBUG
+    Serial.println("SCHC_Ack_on_error::execute - Entering the function");
+#endif
+    if(msg!=NULL)
+    {
+        // definir decoder para recepcion de mensajes
+    }
+    else
+    {
+        if(_currentState==STATE_TX_INIT)
+        {
+            Serial.println("SCHC_Ack_on_error::execute - ERROR: you cannot call the execute() method in STATE_TX_INIT");
+        }
+        else if(_currentState==STATE_TX_SEND)
+        {
+            this->TX_SEND_send_fragment();
+        }
+        else if(_currentState==STATE_TX_WAIT_x_ACK)
+        {
+            return 1;
+        }
+    }
+
+#ifndef MYDEBUG
+    Serial.println("SCHC_Ack_on_error::execute - Leaving the function");
+#endif
+    return 0;
 }
 
 uint8_t SCHC_Ack_on_error::mtuUpgrade(int mtu)
@@ -249,6 +249,9 @@ uint8_t SCHC_Ack_on_error::TX_SEND_send_fragment()
 
 uint8_t SCHC_Ack_on_error::divideInTiles(char *buffer, int len)
 {
+/* Creates an array of size _nFullTiles x _tileSize to store the message. 
+Each row of the array is a tile of tileSize bytes. It also determines 
+the number of SCHC windows.*/
 #ifndef MYDEBUG
     Serial.println("SCHC_Ack_on_error::divideInTiles - Entering the function");
 #endif

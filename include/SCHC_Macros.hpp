@@ -4,7 +4,7 @@
 /* DEBUG Level */
 // comment the line of the log level you want to activate
 #define MYDEBUG
-#define MYINFO
+//#define MYINFO
 #define SERIAL_CONNECTION
 
 

@@ -111,7 +111,10 @@ PlatformIO is a cross-platform, cross-architecture, multiple framework for embed
 
  * **Step 8:** ***Open*** a terminal (e.g. Window terminal or PowerShell for Window). Go to the **RAK_PATCH** folder into PlatformIO installation folder. ***Execute*** the below comand:
 
-``` python ./rak_patch.py```
+||| 
+|-------|--------|	 
+|Windows| ``` python.exe .\rak_patch.py``` |
+|Linux| 	``` python ./rak_patch.py``` |
 
 > NOTE: This script update the PlatformIO with the RAK4631 board.
 
