@@ -5,14 +5,14 @@
 
 /*** Ticker ***/
 void periodicWakeup();
-Ticker myTicker(periodicWakeup, 20000);  // Periodic callback each 20000 milliseconds
+Ticker myTicker(periodicWakeup, 30000);  // Periodic callback each 20000 milliseconds
 int counter = 0;
 
 SCHC_Fragmenter_End_Device* frag;
 
 void setup()
 {
-#ifndef MYINFO
+#ifdef MYINFO
     Serial.println("=================================");
     Serial.println("setup() - Starting setup function");
 #endif 
@@ -51,7 +51,7 @@ void setup()
     frag->initialize(SCHC_FRAG_PROTOCOL_LORAWAN);
 
     myTicker.start();
-#ifndef MYDEBUG
+#ifdef MYDEBUG
     Serial.println("=================================");
 #endif 
 }
@@ -63,7 +63,7 @@ void loop()
 
 void periodicWakeup()
 {
-#ifndef MYDEBUG
+#ifdef MYINFO
     Serial.println("=================================");
     Serial.println("periodicWakeup() - Starting Periodic function");
 #endif 
@@ -85,13 +85,13 @@ void periodicWakeup()
 
     Serial.println(s.length()+1);
     char* cstr = new char [s.length()+1];
-    strcpy (cstr, s.c_str());
+    strcpy(cstr, s.c_str());
 
     frag->send(cstr, s.length()+1);
 
     delete[] cstr;
     myTicker.resume();
-#ifndef MYDEBUG
+#ifdef MYINFO
     Serial.println("=================================");
     Serial.println();
 #endif 

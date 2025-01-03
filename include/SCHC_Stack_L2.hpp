@@ -6,9 +6,9 @@
 class SCHC_Stack_L2
 {
 public:
-    virtual uint8_t initialize_stack(void);
-    virtual uint8_t send_frame(uint8_t ruleID, char* msg, int len);
-    virtual int getMtu(bool consider_Fopt);
+    virtual uint8_t initialize_stack(void) = 0;
+    virtual uint8_t send_frame(uint8_t ruleID, char* msg, int len) = 0;
+    virtual int getMtu(bool consider_Fopt) = 0;
 };
 
 #endif

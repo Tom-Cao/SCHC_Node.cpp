@@ -4,9 +4,13 @@ SCHC_Ack_on_error::SCHC_Ack_on_error()
 {
 }
 
-uint8_t SCHC_Ack_on_error::init(uint8_t ruleID, uint8_t dTag, uint8_t windowSize, uint8_t tileSize, uint8_t n, uint8_t ackMode, SCHC_Stack_L2 *stack_ptr)
+SCHC_Ack_on_error::~SCHC_Ack_on_error()
 {
-#ifndef MYDEBUG
+}
+
+uint8_t SCHC_Ack_on_error::init(uint8_t ruleID, uint8_t dTag, uint8_t windowSize, uint8_t tileSize, uint8_t n, uint8_t ackMode, SCHC_Stack_L2 *stack_ptr, int retTimer, uint8_t ackReqAttempts)
+{
+#ifdef MYDEBUG
     Serial.println("SCHC_Ack_on_error::init - Entering the function");
 #endif
     /* Static SCHC parameters */
@@ -14,16 +18,18 @@ uint8_t SCHC_Ack_on_error::init(uint8_t ruleID, uint8_t dTag, uint8_t windowSize
     _dTag = dTag;
     _windowSize = windowSize;
     _nMaxWindows = pow(2,n);
-    _nFullTiles = 0;    // in tiles
-    _lastTileSize = 0;  // in bytes
-    _tileSize = tileSize;      // in bytes
+    _nFullTiles = 0;                // in tiles
+    _lastTileSize = 0;              // in bytes
+    _tileSize = tileSize;           // in bytes
     _ackMode = ackMode;
+    _retransTimer = retTimer;       // in millis
+    _maxAckReq = ackReqAttempts;
 
     /* Static LoRaWAN parameters*/
-    _current_L2_MTU = stack_ptr->getMtu(false);   //SF12
+    _current_L2_MTU = stack_ptr->getMtu(true);
     _stack = stack_ptr;
 
-#ifndef MYDEBUG
+#ifdef MYDEBUG
     Serial.println("SCHC_Ack_on_error::init - Leaving the function");
 #endif
 
@@ -32,7 +38,7 @@ uint8_t SCHC_Ack_on_error::init(uint8_t ruleID, uint8_t dTag, uint8_t windowSize
 
 uint8_t SCHC_Ack_on_error::start(char *buffer, int len)
 {
-#ifndef MYDEBUG
+#ifdef MYDEBUG
     Serial.println("SCHC_Ack_on_error::start - Entering the function");
 #endif
     /* Dynamic SCHC parameters */
@@ -70,7 +76,7 @@ uint8_t SCHC_Ack_on_error::start(char *buffer, int len)
     */
     _currentState = STATE_TX_SEND;
     res = this->execute();
-#ifndef MYDEBUG
+#ifdef MYDEBUG
     Serial.println("SCHC_Ack_on_error::start - Leaving the function");
 #endif
     return res;
@@ -78,7 +84,7 @@ uint8_t SCHC_Ack_on_error::start(char *buffer, int len)
 
 uint8_t SCHC_Ack_on_error::execute(char *msg, int len)
 {
-#ifndef MYDEBUG
+#ifdef MYDEBUG
     Serial.println("SCHC_Ack_on_error::execute - Entering the function");
 #endif
     if(msg!=NULL)
@@ -93,43 +99,23 @@ uint8_t SCHC_Ack_on_error::execute(char *msg, int len)
         }
         else if(_currentState==STATE_TX_SEND)
         {
-            this->TX_SEND_send_fragment();
+            this->TX_SEND_send_fragments();
         }
         else if(_currentState==STATE_TX_WAIT_x_ACK)
         {
-            return 1;
+            this->TX_WAIT_x_ACK_send_ack_req();
         }
     }
 
-#ifndef MYDEBUG
+#ifdef MYDEBUG
     Serial.println("SCHC_Ack_on_error::execute - Leaving the function");
 #endif
     return 0;
 }
 
-uint8_t SCHC_Ack_on_error::mtuUpgrade(int mtu)
+uint8_t SCHC_Ack_on_error::TX_SEND_send_fragments()
 {
-#ifndef MYDEBUG
-    Serial.println("SCHC_Ack_on_error::mtuUpgrade - Entering the function");
-#endif
-
-#ifndef MYINFO
-    Serial.print("SCHC_Ack_on_error::mtuUpgrade - updating the MTU to: ");
-    Serial.print(mtu);
-    Serial.println(" bytes");
-#endif
-    _current_L2_MTU = mtu;
-
-#ifndef MYDEBUG
-    Serial.println("SCHC_Ack_on_error::mtuUpgrade - Leaving the function");
-#endif
-
-    return 0;
-}
-
-uint8_t SCHC_Ack_on_error::TX_SEND_send_fragment()
-{
-#ifndef MYDEBUG
+#ifdef MYDEBUG
     Serial.println("SCHC_Ack_on_error::TX_SEND_send_fragment - Entering the function");
 #endif
 
@@ -209,39 +195,132 @@ uint8_t SCHC_Ack_on_error::TX_SEND_send_fragment()
         }        
     }
 
-    /* Numero de tiles que se pueden enviar */
-//    if(_currentWindow<(_nWindows-1))   /* tiles a enviar en una ventana que NO es la ultima*/
-
-
-
     /* buffer que almacena todos los tiles que se van a enviar */
     int payload_len = n_tiles_to_send * _tileSize;  // in bytes
-    char payload[payload_len];
+    char* payload = new char[payload_len];
 
-    extractTiles(_currentTile_ptr, n_tiles_to_send, payload);
+    this->extractTiles(_currentTile_ptr, n_tiles_to_send, payload);
 
     /* Crea un mensaje SCHC en formato hexadecimal */
     SCHC_Message msg;
-    char msgBuffer[(n_tiles_to_send * _tileSize) + 1];
+    char* msgBuffer = new char[(n_tiles_to_send * _tileSize) + 1];
     int msgBuffer_len = msg.createRegularFragment(_ruleID, _dTag, _currentWindow, _currentFcn, payload, payload_len, msgBuffer);
    
+    /* Imprime los mensajes para visualizacion ordenada */
     msg.printMsg(SCHC_FRAG_PROTOCOL_LORAWAN, SCHC_REGULAR_FRAGMENT_MSG, msgBuffer, msgBuffer_len);    
     printCurrentBitmap(_currentWindow);
+
+    /* Envía el mensaje a la capa 2*/
     uint8_t res = _stack->send_frame(_ruleID, msgBuffer, msgBuffer_len);
+
+    /* Eliminar los punteros a buffers*/
+    delete[] msgBuffer;
+    delete[] payload;
     if(res==1)
     {
         Serial.println("SCHC_Ack_on_error::sendRegularFragment - ERROR sending L2 frame");
         return 1;
     }
 
-    _currentBitmap_ptr = newBitmap_ptr;
-    _currentFcn = newFcn;
-    _currentWindow = newWindow;
-    _currentTile_ptr = _currentTile_ptr + n_tiles_to_send;
+    if(_currentState==STATE_TX_WAIT_x_ACK)
+    {
+
+    }
+    else
+    {
+        _currentBitmap_ptr = newBitmap_ptr;
+        _currentFcn = newFcn;
+        _currentWindow = newWindow;
+        _currentTile_ptr = _currentTile_ptr + n_tiles_to_send;
+    }
+
     this->execute();
     
-#ifndef MYDEBUG
+#ifdef MYDEBUG
     Serial.println("SCHC_Ack_on_error::TX_SEND_send_fragment - Leaving the function");
+#endif
+
+    return 0;
+}
+
+uint8_t SCHC_Ack_on_error::TX_WAIT_x_ACK_send_ack_req()
+{
+#ifdef MYDEBUG
+    Serial.println("SCHC_Ack_on_error::TX_WAIT_x_ACK_send_ack_req - Entering the function");
+#endif
+
+    uint8_t res = 0;
+    for(int i=0; i<_maxAckReq; i++)
+    {
+        uint32_t timer_1 = millis();
+        while(millis()-timer_1 < (_retransTimer*1000))
+        {
+            delay(250);
+        }
+
+        SCHC_Message msg;
+        char* msgBuffer = new char[1];
+        int msgBuffer_len = msg.createACKRequest(_ruleID, _dTag, _currentWindow, msgBuffer);
+
+        /* Imprime los mensajes para visualizacion ordenada */
+        msg.printMsg(SCHC_FRAG_PROTOCOL_LORAWAN, SCHC_ACK_REQ_MSG, msgBuffer, msgBuffer_len);
+
+        /* Envía el mensaje a la capa 2*/
+        res = _stack->send_frame(_ruleID, msgBuffer, msgBuffer_len);
+
+        /* Eliminar los punteros a buffers*/
+        delete[] msgBuffer;
+
+        if(res==1)
+        {
+            Serial.println("SCHC_Ack_on_error::TX_WAIT_x_ACK_send_ack_req - ERROR sending L2 frame");
+            return 1;
+        }
+
+    }
+
+    SCHC_Message msg;
+    char* msgBuffer = new char[1];
+    int msgBuffer_len = msg.createSenderAbort(_ruleID, _dTag, _currentWindow, msgBuffer);
+
+    /* Imprime los mensajes para visualizacion ordenada */
+    msg.printMsg(SCHC_FRAG_PROTOCOL_LORAWAN, SCHC_SENDER_ABORT_MSG, msgBuffer, msgBuffer_len);
+
+    /* Envía el mensaje a la capa 2*/
+    res = _stack->send_frame(_ruleID, msgBuffer, msgBuffer_len);
+
+    /* Eliminar los punteros a buffers*/
+    delete[] msgBuffer;
+
+    if(res==1)
+    {
+        Serial.println("SCHC_Ack_on_error::TX_WAIT_x_ACK_send_ack_req - ERROR sending L2 frame");
+        return 1;
+    }
+
+Serial.println("SCHC_Ack_on_error::TX_WAIT_x_ACK_send_ack_req - Session Aborted by SCHC sender");
+
+#ifdef MYDEBUG
+    Serial.println("SCHC_Ack_on_error::TX_WAIT_x_ACK_send_ack_req - Leaving the function");
+#endif 
+    return 0;
+}
+
+uint8_t SCHC_Ack_on_error::mtuUpgrade(int mtu)
+{
+#ifdef MYDEBUG
+    Serial.println("SCHC_Ack_on_error::mtuUpgrade - Entering the function");
+#endif
+
+#ifdef MYINFO
+    Serial.print("SCHC_Ack_on_error::mtuUpgrade - updating the MTU to: ");
+    Serial.print(mtu);
+    Serial.println(" bytes");
+#endif
+    _current_L2_MTU = mtu;
+
+#ifdef MYDEBUG
+    Serial.println("SCHC_Ack_on_error::mtuUpgrade - Leaving the function");
 #endif
 
     return 0;
@@ -252,7 +331,7 @@ uint8_t SCHC_Ack_on_error::divideInTiles(char *buffer, int len)
 /* Creates an array of size _nFullTiles x _tileSize to store the message. 
 Each row of the array is a tile of tileSize bytes. It also determines 
 the number of SCHC windows.*/
-#ifndef MYDEBUG
+#ifdef MYDEBUG
     Serial.println("SCHC_Ack_on_error::divideInTiles - Entering the function");
 #endif
 
@@ -276,7 +355,7 @@ Implementations must ensure that:
         _lastTileSize = len%_tileSize;
     }
 
-#ifndef MYINFO
+#ifdef MYINFO
     Serial.print("SCHC_Ack_on_error::divideInTiles - Full Tiles number: ");
     Serial.print(_nFullTiles);
     Serial.println(" tiles");
@@ -328,7 +407,7 @@ Implementations must ensure that:
     {
         _nWindows = 1;
     }
-#ifndef MYINFO
+#ifdef MYINFO
     Serial.print("SCHC_Ack_on_error::divideInTiles - SCHC Windows number: ");
     Serial.println(_nWindows);
 #endif
@@ -340,7 +419,7 @@ Implementations must ensure that:
     // }
     // delete [] _tilesArray;
 
-#ifndef MYDEBUG
+#ifdef MYDEBUG
     Serial.println("SCHC_Ack_on_error::divideInTiles - Leaving the function");
 #endif
 
@@ -349,7 +428,7 @@ Implementations must ensure that:
 
 uint8_t SCHC_Ack_on_error::extractTiles(uint8_t firstTileID, uint8_t nTiles, char *buff)
 {
-#ifndef MYDEBUG
+#ifdef MYDEBUG
     Serial.println("SCHC_Ack_on_error::extractTiles - Entering the function");
 #endif
 
@@ -363,7 +442,7 @@ uint8_t SCHC_Ack_on_error::extractTiles(uint8_t firstTileID, uint8_t nTiles, cha
         }
     }
 
-#ifndef MYDEBUG
+#ifdef MYDEBUG
     Serial.println("SCHC_Ack_on_error::extractTiles - Leaving the function");
 #endif
 
@@ -588,3 +667,4 @@ void SCHC_Ack_on_error::printBitmapArray()
         Serial.println();        
     }
 }
+

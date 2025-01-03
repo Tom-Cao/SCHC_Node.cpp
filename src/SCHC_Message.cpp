@@ -10,7 +10,7 @@ int SCHC_Message::createRegularFragment(uint8_t ruleID, uint8_t dtag, uint8_t w,
     /* Mask definition */ 
     byte w_mask = 0xC0;
     byte fcn_mask = 0x3F;
-    byte c_mask = 0x20;
+    //byte c_mask = 0x20;
 
     /* SCHC header construction */
     uint8_t new_w = (w << 6) & w_mask;
@@ -27,20 +27,52 @@ int SCHC_Message::createRegularFragment(uint8_t ruleID, uint8_t dtag, uint8_t w,
     return (payload_len + 1);
 }
 
+int SCHC_Message::createACKRequest(uint8_t ruleID, uint8_t dtag, uint8_t w, char *buffer)
+{
+    /* Mask definition */ 
+    byte w_mask = 0xC0;
+    //byte fcn_mask = 0x3F;
+    //byte c_mask = 0x20;
+
+    /* SCHC header construction */
+    uint8_t new_w = (w << 6) & w_mask;
+    uint8_t new_fcn = 0x00;
+    uint8_t header = new_w | new_fcn;
+    buffer[0] = header;
+
+    return 1;
+}
+
+int SCHC_Message::createSenderAbort(uint8_t ruleID, uint8_t dtag, uint8_t w, char *buffer)
+{
+        /* Mask definition */ 
+    byte w_mask = 0xC0;
+    //byte fcn_mask = 0x3F;
+    //byte c_mask = 0x20;
+
+    /* SCHC header construction */
+    uint8_t new_w = (w << 6) & w_mask;
+    uint8_t new_fcn = 0x3F;
+    uint8_t header = new_w | new_fcn;
+    buffer[0] = header;
+
+    return 1;
+}
+
 SCHC_Message *SCHC_Message::decodeMsg(uint8_t protocol, char *msg, int len)
 {
-    if(protocol==SCHC_FRAG_PROTOCOL_LORAWAN)
-    {
-        byte schc_header = (byte)msg[0];
+    // if(protocol==SCHC_FRAG_PROTOCOL_LORAWAN)
+    // {
+    //     byte schc_header = (byte)msg[0];
 
-        // Mask definition
-        byte w_mask = 0xC0;
-        byte fcn_mask = 0x3F;
-        byte c_mask = 0x20;
+    //     // Mask definition
+    //     byte w_mask = 0xC0;
+    //     byte fcn_mask = 0x3F;
+    //     byte c_mask = 0x20;
 
-        uint8_t w = w_mask && schc_header;
+    //     uint8_t w = w_mask && schc_header;
         
-    }
+    // }
 
     return this;
 }
@@ -79,12 +111,55 @@ void SCHC_Message::printMsg(uint8_t protocol, uint8_t msgType, char *msg, int le
         {
             Serial.print(" ----->| ");
         }
-        
-        Serial.print(len/10);
-        Serial.print(" tiles sent");
+
+        int tile_size = 10;          // hardcoding warning - tile size = 10
+        int n_tiles = (len-1)/tile_size;   
+        if(n_tiles>9)
+        {
+            Serial.print(n_tiles);
+            Serial.print(" tiles sent");
+        }
+        else
+        {
+            Serial.print(" ");
+            Serial.print(n_tiles);
+            Serial.print(" tiles sent");
+        }      
     }
-
-
+    else if(msgType==SCHC_ACK_REQ_MSG)
+    {
+        uint8_t w = (msg[0] & 0xC0) >> 6;
+        uint8_t fcn = (msg[0] & 0x3F);
+        Serial.print("|-----W=");
+        Serial.print(w);
+        Serial.print(", FCN=");
+        Serial.print(fcn);
+        if(fcn>9)
+        {
+            Serial.println("----->| ");
+        }
+        else
+        {
+            Serial.println(" ----->| ");
+        }
+    }
+    else if(msgType==SCHC_SENDER_ABORT_MSG)
+    {
+        uint8_t w = (msg[0] & 0xC0) >> 6;
+        uint8_t fcn = (msg[0] & 0x3F);
+        Serial.print("|-----W=");
+        Serial.print(w);
+        Serial.print(", FCN=");
+        Serial.print(fcn);
+        if(fcn>9)
+        {
+            Serial.println("----->| ");
+        }
+        else
+        {
+            Serial.println(" ----->| ");
+        }
+    }
 }
 
 void SCHC_Message::printBin(uint8_t val)

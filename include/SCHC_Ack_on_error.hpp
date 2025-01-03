@@ -11,11 +11,13 @@ class SCHC_Ack_on_error: public SCHC_State_Machine
 {
     public:
         SCHC_Ack_on_error();
-        virtual uint8_t init(uint8_t ruleID, uint8_t dTag, uint8_t windowSize, uint8_t tileSize, uint8_t n, uint8_t ackMode, SCHC_Stack_L2* stack_ptr);
-        virtual uint8_t execute(char *msg=NULL, int len=0);
+        ~SCHC_Ack_on_error();
+        virtual uint8_t init(uint8_t ruleID, uint8_t dTag, uint8_t windowSize, uint8_t tileSize, uint8_t n, uint8_t ackMode, SCHC_Stack_L2* stack_ptr, int retTimer, uint8_t ackReqAttempts);
         virtual uint8_t start(char *buffer, int len);
+        virtual uint8_t execute(char *msg=NULL, int len=0);
     private: 
-        uint8_t TX_SEND_send_fragment();
+        uint8_t TX_SEND_send_fragments();
+        uint8_t TX_WAIT_x_ACK_send_ack_req();
         uint8_t mtuUpgrade(int mtu);
         uint8_t divideInTiles(char *buffer, int len);
         uint8_t extractTiles(uint8_t firstTileID, uint8_t nTiles, char *buff);
@@ -41,6 +43,8 @@ class SCHC_Ack_on_error: public SCHC_State_Machine
         char* _lastTile;
         uint8_t _ackMode;
         bool** _currentBitmapArray;
+        uint32_t _retransTimer;
+        uint8_t _maxAckReq;
 
         /* Dynamic SCHC parameters */
         uint8_t _currentState;
@@ -49,11 +53,9 @@ class SCHC_Ack_on_error: public SCHC_State_Machine
         uint8_t _currentBitmap_ptr;
         int _currentTile_ptr;
         
-        
         /* Static LoRaWAN parameters*/
         int _current_L2_MTU;
         SCHC_Stack_L2* _stack;
-
 };
 
 #endif

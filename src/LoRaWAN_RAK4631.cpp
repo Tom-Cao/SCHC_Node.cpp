@@ -36,13 +36,12 @@ uint8_t LoRaWAN_RAK4631::initialize_stack(void)
                                             };
 
     // ************** LoRa and LoRaWAN Params ******************
-    #define LORAWAN_DATERATE            DR_1					/* LoRaWAN datarates definition, from DR_0 to DR_5*/
+    #define LORAWAN_DATERATE            DR_5					/* LoRaWAN datarates definition, from DR_0 to DR_5*/
     #define LORAWAN_TX_POWER            TX_POWER_5				/* LoRaWAN tx power definition, from TX_POWER_0 to TX_POWER_15*/
     #define JOINREQ_NBTRIALS            3						/* *< Number of trials for the join request. */
     _doOTAA                             = true;                 /* OTAA is used by default. */
     DeviceClass_t g_CurrentClass        = CLASS_A;				/* class definition*/
     LoRaMacRegion_t g_CurrentRegion     = LORAMAC_REGION_AU915; /* Region:EU868*/
-    #define LORAWAN_APP_DATA_BUFF_SIZE 300
 
     g_lora_param_init    = {LORAWAN_ADR_OFF, 
                                         LORAWAN_DATERATE, 
@@ -159,8 +158,11 @@ uint8_t LoRaWAN_RAK4631::initialize_stack(void)
 
 uint8_t LoRaWAN_RAK4631::send_frame(uint8_t ruleID, char* msg, int len)
 {
+#ifdef MYDEBUG
+    Serial.println("LoRaWAN_RAK4631::send_frame - Entering the function");
+#endif
     // ************** Private definitions **************
-    uint8_t m_lora_app_data_buffer[LORAWAN_APP_DATA_BUFF_SIZE];			  ///< Lora user application data buffer.
+    uint8_t m_lora_app_data_buffer[len];			  ///< Lora user application data buffer.
     lmh_app_data_t m_lora_app_data = {m_lora_app_data_buffer, 0, 0, 0, 0}; ///< Lora user application data structure.
 
     if (lmh_join_status_get() != LMH_SET)
@@ -178,12 +180,12 @@ uint8_t LoRaWAN_RAK4631::send_frame(uint8_t ruleID, char* msg, int len)
     }
     m_lora_app_data.buffsize = len;
 
-    lmh_error_status error = lmh_send_blocking(&m_lora_app_data, LMH_UNCONFIRMED_MSG,10000);
+    lmh_error_status error = lmh_send_blocking(&m_lora_app_data, LMH_UNCONFIRMED_MSG,5000);
     if (error == LMH_SUCCESS)
     {
         char myBuffer[30];
         sprintf(myBuffer, "lmh_send ok: %d",error);
-#ifndef MYINFO
+#ifdef MYDEBUG
         Serial.println(myBuffer);
 #endif
         return 0;
@@ -192,7 +194,7 @@ uint8_t LoRaWAN_RAK4631::send_frame(uint8_t ruleID, char* msg, int len)
     {
         char myBuffer[30];
         sprintf(myBuffer, "lmh_send busy: %d",error);
-#ifndef MYINFO
+#ifdef MYINFO
         Serial.println(myBuffer);
 #endif
         return 1;
@@ -201,7 +203,7 @@ uint8_t LoRaWAN_RAK4631::send_frame(uint8_t ruleID, char* msg, int len)
     {
         char myBuffer[30];
         sprintf(myBuffer, "lmh_send error: %d",error);
-#ifndef MYINFO
+#ifdef MYINFO
         Serial.println(myBuffer);
 #endif
         return 1;
@@ -263,7 +265,7 @@ void LoRaWAN_RAK4631::lorawan_confirm_class_handler(DeviceClass_t Class)
 
 void LoRaWAN_RAK4631::lorawan_unconf_finished(void)
 {
-#ifndef MYINFO
+#ifdef MYDEBUG
     Serial.println("TX unconfirmed finished!!");
 #endif
 }

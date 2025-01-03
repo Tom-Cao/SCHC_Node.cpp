@@ -14,11 +14,12 @@ class SCHC_Session_End_Device
         SCHC_Session_End_Device();
         uint8_t initialize(uint8_t protocol, uint8_t direction, uint8_t dTag, SCHC_Stack_L2* stack_ptr);
         uint8_t startFragmentation(char *buffer, int len);
-        bool isUsed();
+        bool getIsUsed();
+        void setIsUsed(bool isUsed);
         uint8_t getDTag();
-        void clearIsUsed();
     private:
         uint8_t createStateMachine();
+        uint8_t destroyStateMachine();
         bool _isUsed;
         uint8_t _protocol;
         uint8_t _direction;

@@ -2,10 +2,10 @@
 #define SCHC_Macros_hpp
 
 /* DEBUG Level */
-// comment the line of the log level you want to activate
-#define MYDEBUG
-//#define MYINFO
-#define SERIAL_CONNECTION
+// uncomment the line of the log level you want to activate
+//#define MYDEBUG
+#define MYINFO
+//#define SERIAL_CONNECTION
 
 
 #define _SESSION_POOL_SIZE 10   // Sessions numbers
