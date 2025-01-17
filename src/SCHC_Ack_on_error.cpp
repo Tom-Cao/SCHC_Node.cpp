@@ -167,8 +167,8 @@ uint8_t SCHC_Ack_on_error::TX_SEND_send_fragments()
         n_remaining_win_tiles = _currentFcn + 1;                // numero de tiles de la ventana que faltan por enviar
         n_remaining_tot_tiles = _nFullTiles - _currentTile_ptr; // numero total de tiles que faltan por enviar
 
-        if(n_remaining_tot_tiles <= n_remaining_win_tiles)
-            n_remaining_tiles = n_remaining_tot_tiles;
+        if(n_remaining_tot_tiles <= n_remaining_win_tiles)      // n° total de tiles es menor o igual al n° de tiles restantes de la ventana
+            n_remaining_tiles = n_remaining_tot_tiles;          // envío de los ultimos tiles del mensaje
         else
             n_remaining_tiles = n_remaining_win_tiles;
 
@@ -314,23 +314,133 @@ uint8_t SCHC_Ack_on_error::TX_SEND_send_fragments()
             */
             n_tiles_to_send = payload_available_in_tiles;
 
-            // newBitmap_ptr = this->setBitmapArray(_currentTile_ptr, n_tiles_to_send);
-            // newFcn = this->getCurrentFCN(_currentTile_ptr + n_tiles_to_send);
-            // newWindow = this->getCurrentWindow(_currentTile_ptr + n_tiles_to_send);
-            // _currentState = STATE_TX_SEND;
+            /* buffer que almacena todos los tiles que se van a enviar */
+            int payload_len         = n_tiles_to_send * _tileSize;  // tamaño del SCHC payload en bytes
+            char* schc_payload      = new char[payload_len];        // liberado en linea 215. buffer para el SCHC payload
+            char* schc_message      = new char[payload_len + 1];    // liberado en linea 214 buffer para el SCHC message (header + payload)            
+
+            this->extractTiles(_currentTile_ptr, n_tiles_to_send, schc_payload);
+
+            /* Crea un mensaje SCHC en formato hexadecimal */
+            int schc_message_len = encoder.create_regular_fragment(_ruleID, _dTag, _currentWindow, _currentFcn, schc_payload, payload_len, schc_message);
+
+            /* Imprime los mensajes para visualizacion ordenada */
+            encoder.print_msg(SCHC_REGULAR_FRAGMENT_MSG, schc_message, schc_message_len);
+
+            /* Envía el mensaje a la capa 2*/
+            uint8_t res = _stack->send_frame(_ruleID, schc_message, schc_message_len);
+            if(res==1)
+            {
+                Serial.println("SCHC_Ack_on_error::sendRegularFragment - ERROR sending L2 frame");
+                return 1;
+            }
+
+            /* Eliminar los punteros a buffers*/
+            delete[] schc_message;
+            delete[] schc_payload;
+
+            _currentTile_ptr    = _currentTile_ptr + n_tiles_to_send;
+
+            if((_currentFcn - n_tiles_to_send <= -1))   // * detecta si se comenzaron a enviar los tiles de la siguiente ventana
+            {
+                _currentFcn = (_currentFcn - n_tiles_to_send) + _windowSize;
+                _currentWindow = _currentWindow + 1;
+            }
+            else
+            {
+                _currentFcn = _currentFcn - n_tiles_to_send;
+            }
+
+            this->execute();
         }
         else
         {
-            /* Si la cantidad de tiles que faltan por enviar 
+           /* Si la cantidad de tiles que faltan por enviar 
             para la sesion SI alcanza en la MTU 
-            significa que estos son los ultimos Full Tiles
+            significa que este es el ultimo envio para la 
+            sesion
             */
             n_tiles_to_send = n_all_remaining_tiles;
 
-            // newBitmap_ptr = this->setBitmapArray(_currentTile_ptr, n_tiles_to_send);
-            // newFcn = _windowSize;
-            // newWindow = this->getCurrentWindow(_currentTile_ptr + n_tiles_to_send);
-            // _currentState = STATE_TX_WAIT_x_ACK;
+            /* buffer que almacena todos los tiles que se van a enviar */
+            int payload_len         = n_tiles_to_send * _tileSize;  // tamaño del SCHC payload en bytes
+            char* schc_payload      = new char[payload_len];        // liberado en linea 258. buffer para el SCHC payload
+            char* schc_message      = new char[payload_len + 1];    // liberado en linea 257. buffer para el SCHC message (header + payload)
+
+            this->extractTiles(_currentTile_ptr, n_tiles_to_send, schc_payload);
+
+            /* Crea un mensaje SCHC en formato hexadecimal */
+            int schc_message_len = encoder.create_regular_fragment(_ruleID, _dTag, _currentWindow, _currentFcn, schc_payload, payload_len, schc_message);
+
+            /* Imprime los mensajes para visualizacion ordenada */
+            encoder.print_msg(SCHC_REGULAR_FRAGMENT_MSG, schc_message, schc_message_len); 
+
+            /* Envía el mensaje a la capa 2*/
+            uint8_t res = _stack->send_frame(_ruleID, schc_message, schc_message_len);
+            if(res==1)
+            {
+                Serial.println("SCHC_Ack_on_error::sendRegularFragment - ERROR sending L2 frame");
+                return 1;
+            }
+
+            /* Eliminar los punteros a buffers*/
+            delete[] schc_message;
+            delete[] schc_payload;
+
+            // TODO: Verificar si es necesario actualizar el _currentTile_ptr
+            //_currentTile_ptr    = _currentTile_ptr + n_tiles_to_send;
+            
+            /* Se envia el ultimo tile en un SCHC All-1 */
+            if(_currentWindow == (_nWindows - 1))
+            {
+                /* buffer que almacena todos los tiles que se van a enviar */
+                payload_len                 = _lastTileSize;                    // tamaño del last tile en bytes
+                char* schc_all_1_message    = new char[payload_len + 1 + 4];    // liberado en linea 285. buffer para el SCHC message: header (1B) + rcs (4B) + payload
+                /* Crea un mensaje SCHC en formato hexadecimal */
+                int schc_all_1_message_len = encoder.create_all_1_fragment(_ruleID, _dTag, _currentWindow, _rcs, _lastTile, payload_len, schc_all_1_message);
+
+                /* Imprime los mensajes para visualizacion ordenada */
+                encoder.print_msg(SCHC_ALL1_FRAGMENT_MSG, schc_all_1_message, schc_all_1_message_len); 
+
+                /* Envía el mensaje a la capa 2*/
+                uint8_t res = _stack->send_frame(_ruleID, schc_all_1_message, schc_all_1_message_len);
+                if(res==1)
+                {
+                    Serial.println("SCHC_Ack_on_error::sendRegularFragment - ERROR sending L2 frame");
+                    return 1;
+                }
+
+                /* Eliminar los punteros a buffers*/
+                delete[] schc_all_1_message;
+            }
+
+            /* Se envía un SCHC ACK REQ para empujar el envio en el downlink
+            del SCHC ACK enviado por el SCHC Gateway */
+            vTaskDelay(pdMS_TO_TICKS(1000)); // Pausar por 1000 ms
+
+            SCHC_Message encoder_2;
+            char* schc_ack_req_msg      = new char[1];      // liberado en linea 308
+            int schc_ack_req_msg_len    = encoder_2.create_ack_request(_ruleID, _dTag, _currentWindow, schc_ack_req_msg);
+
+            /* Imprime los mensajes para visualizacion ordenada */
+            encoder_2.print_msg(SCHC_ACK_REQ_MSG, schc_ack_req_msg, schc_ack_req_msg_len);
+
+            /* Envía el mensaje a la capa 2*/
+            res = _stack->send_frame(_ruleID, schc_ack_req_msg, schc_ack_req_msg_len);
+            if(res==1)
+            {
+                Serial.println("SCHC_Ack_on_error::TX_WAIT_x_ACK_send_ack_req - ERROR sending L2 frame");
+                return 1;
+            }
+
+            /* Eliminar los punteros a buffers*/
+            delete[] schc_ack_req_msg;
+
+            _currentState       = STATE_TX_WAIT_x_ACK;
+#ifdef MYDEBUG
+            Serial.println("Changing STATE: From STATE_TX_SEND --> STATE_TX_WAIT_x_ACK");
+#endif
+            this->message_reception_loop();
         }        
     }
 

@@ -46,5 +46,6 @@
 #define ACK_MODE_ACK_END_WIN 1
 #define ACK_MODE_ACK_END_SES 2
 #define ACK_MODE_COMPOUND_ACK 3
+#define ACK_MODE  ACK_MODE_ACK_END_SES  
 
 #endif

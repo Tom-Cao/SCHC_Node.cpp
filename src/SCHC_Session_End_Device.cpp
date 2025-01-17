@@ -127,7 +127,7 @@ uint8_t SCHC_Session_End_Device::createStateMachine()
         _stateMachine = new SCHC_Ack_on_error();    // liberada en linea 146
 
         /* Inicializando maquina de estado */
-        _stateMachine->init(_ruleID, _dTag, _windowSize, _tileSize, _n, ACK_MODE_ACK_END_WIN, _stack, _retransTimer, _maxAckReq);
+        _stateMachine->init(_ruleID, _dTag, _windowSize, _tileSize, _n, ACK_MODE, _stack, _retransTimer, _maxAckReq);
 
 #ifdef MYINFO
         Serial.println("SCHC_Session_End_Device::createStateMachine - State machine successfully created, initiated, and started");
