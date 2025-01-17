@@ -7,16 +7,16 @@ SCHC_Session_End_Device::SCHC_Session_End_Device()
 
 uint8_t SCHC_Session_End_Device::initialize(uint8_t protocol, uint8_t direction, uint8_t dTag, SCHC_Stack_L2* stack_ptr)
 {
-#ifdef MYDEBUG
+#ifdef MYTRACE
     Serial.println("SCHC_Session_End_Device::initialize - Entering the function");
 #endif
     _isUsed = false;  // at the beginning, the sessions are not being used
 
-    if(direction==SCHC_FRAG_DIRECTION_UPLINK && protocol==SCHC_FRAG_PROTOCOL_LORAWAN)
+    if(direction==SCHC_FRAG_UP && protocol==SCHC_FRAG_LORAWAN)
     {
         // SCHC session initialisation with LoRaWAN profile parameters (see RFC9011)
-        _protocol = SCHC_FRAG_PROTOCOL_LORAWAN;
-        _direction = SCHC_FRAG_DIRECTION_UPLINK;
+        _protocol = SCHC_FRAG_LORAWAN;
+        _direction = SCHC_FRAG_UP;
         _ruleID = 20;
         _dTag = dTag;
         _tileSize = 10;                         // tile size in bytes
@@ -31,10 +31,10 @@ uint8_t SCHC_Session_End_Device::initialize(uint8_t protocol, uint8_t direction,
         _stack = stack_ptr;                     // Pointer to L2 stack
         _txAttemptsCounter = 0;                 // transmission attempt counter
     }
-    else if(direction==SCHC_FRAG_DIRECTION_DOWNLINK && protocol==SCHC_FRAG_PROTOCOL_LORAWAN)
+    else if(direction==SCHC_FRAG_DOWN && protocol==SCHC_FRAG_LORAWAN)
     {
-        _protocol = SCHC_FRAG_PROTOCOL_LORAWAN;
-        _direction = SCHC_FRAG_DIRECTION_DOWNLINK;
+        _protocol = SCHC_FRAG_LORAWAN;
+        _direction = SCHC_FRAG_DOWN;
         _ruleID = 21;
         _dTag = dTag;
         _tileSize = 0;                          // tile size in bytes
@@ -48,7 +48,7 @@ uint8_t SCHC_Session_End_Device::initialize(uint8_t protocol, uint8_t direction,
         _maxMsgSize = _tileSize*_windowSize*2;  // Maximum size of a SCHC packet in bytes
         _stack = stack_ptr;                     // Pointer to L2 stack
     }
-#ifdef MYDEBUG
+#ifdef MYTRACE
     Serial.println("SCHC_Session_End_Device::initialize - Leaving the function");
 #endif
     return 0;
@@ -56,10 +56,10 @@ uint8_t SCHC_Session_End_Device::initialize(uint8_t protocol, uint8_t direction,
 
 uint8_t SCHC_Session_End_Device::startFragmentation(char *buffer, int len)
 {
-#ifdef MYDEBUG
+#ifdef MYTRACE
     Serial.println("SCHC_Session_End_Device::startFragmentation - Entering the function");
 #endif
-    if(_protocol==SCHC_FRAG_PROTOCOL_LORAWAN)
+    if(_protocol==SCHC_FRAG_LORAWAN)
     {
         /*
              8.4.3.1. Sender Behavior
@@ -90,9 +90,9 @@ uint8_t SCHC_Session_End_Device::startFragmentation(char *buffer, int len)
     }
 
     /* Arrancando maquina de estado con el primer mensaje */
-    _stateMachine->start(buffer, len);
+    _stateMachine->execute(buffer, len);
 
-#ifdef MYDEBUG
+#ifdef MYTRACE
     Serial.println("SCHC_Session_End_Device::startFragmentation - Leaving the function");
 #endif
     return 0;
@@ -108,15 +108,23 @@ void SCHC_Session_End_Device::setIsUsed(bool isUsed)
     this->_isUsed = isUsed;
 }
 
+void SCHC_Session_End_Device::process_message(char* msg, int len)
+{
+#ifdef MYTRACE
+    Serial.println("SCHC_Session_End_Device::process_message - Entering the function");
+#endif
+    _stateMachine->queue_message(msg, len);
+}
+
 uint8_t SCHC_Session_End_Device::createStateMachine()
 {
-#ifdef MYDEBUG
+#ifdef MYTRACE
     Serial.println("SCHC_Session_End_Device::createStateMachine - Entering the function");
 #endif
 
-    if(_protocol==SCHC_FRAG_PROTOCOL_LORAWAN && _direction==SCHC_FRAG_DIRECTION_UPLINK)
+    if(_protocol==SCHC_FRAG_LORAWAN && _direction==SCHC_FRAG_UP)
     {
-        _stateMachine = new SCHC_Ack_on_error();
+        _stateMachine = new SCHC_Ack_on_error();    // liberada en linea 146
 
         /* Inicializando maquina de estado */
         _stateMachine->init(_ruleID, _dTag, _windowSize, _tileSize, _n, ACK_MODE_ACK_END_WIN, _stack, _retransTimer, _maxAckReq);
@@ -125,7 +133,7 @@ uint8_t SCHC_Session_End_Device::createStateMachine()
         Serial.println("SCHC_Session_End_Device::createStateMachine - State machine successfully created, initiated, and started");
 #endif
 
-#ifdef MYDEBUG
+#ifdef MYTRACE
         Serial.println("SCHC_Session_End_Device::createStateMachine - Leaving the function");
 #endif
         return 0;

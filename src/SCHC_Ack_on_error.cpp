@@ -10,14 +10,14 @@ SCHC_Ack_on_error::~SCHC_Ack_on_error()
 
 uint8_t SCHC_Ack_on_error::init(uint8_t ruleID, uint8_t dTag, uint8_t windowSize, uint8_t tileSize, uint8_t n, uint8_t ackMode, SCHC_Stack_L2 *stack_ptr, int retTimer, uint8_t ackReqAttempts)
 {
-#ifdef MYDEBUG
+#ifdef MYTRACE
     Serial.println("SCHC_Ack_on_error::init - Entering the function");
 #endif
     /* Static SCHC parameters */
+    _currentState = STATE_TX_INIT;
     _ruleID = ruleID;
     _dTag = dTag;
     _windowSize = windowSize;
-    _nMaxWindows = pow(2,n);
     _nFullTiles = 0;                // in tiles
     _lastTileSize = 0;              // in bytes
     _tileSize = tileSize;           // in bytes
@@ -29,93 +29,121 @@ uint8_t SCHC_Ack_on_error::init(uint8_t ruleID, uint8_t dTag, uint8_t windowSize
     _current_L2_MTU = stack_ptr->getMtu(true);
     _stack = stack_ptr;
 
-#ifdef MYDEBUG
+    _queue = xQueueCreate(10, sizeof(Data_packet_t));
+    _running = true;
+
+#ifdef MYTRACE
     Serial.println("SCHC_Ack_on_error::init - Leaving the function");
 #endif
 
     return 0;
 }
 
-uint8_t SCHC_Ack_on_error::start(char *buffer, int len)
+uint8_t SCHC_Ack_on_error::execute(char *msg, int len)
 {
-#ifdef MYDEBUG
-    Serial.println("SCHC_Ack_on_error::start - Entering the function");
+#ifdef MYTRACE
+    Serial.println("SCHC_Ack_on_error::execute - Entering the function");
 #endif
+    if(msg!=NULL)
+    {
+        if(_currentState==STATE_TX_INIT)
+        {
+            this->TX_INIT_send_fragments(msg, len);
+
+        }
+        else if(_currentState==STATE_TX_WAIT_x_ACK)
+        {
+            this->TX_WAIT_x_ACK_receive_ack(msg, len);
+        }
+    }
+    else
+    {
+        if(_currentState==STATE_TX_SEND)
+        {
+            this->TX_SEND_send_fragments();
+        }
+        else if(_currentState==STATE_TX_END)
+        {
+            this->TX_END_free_resources();
+        }
+    }
+#ifdef MYTRACE
+    Serial.println("SCHC_Ack_on_error::execute - Leaving the function");
+#endif
+    return 0;
+}
+
+uint8_t SCHC_Ack_on_error::queue_message(char *msg, int len)
+{
+    Data_packet_t packet;
+    memcpy(packet.msg, msg, len);
+    packet.len = len;
+
+    if (xQueueSend(_queue, &packet, portMAX_DELAY) == pdPASS)
+    {
+#ifdef MYTRACE
+        Serial.println("SCHC_Ack_on_error::queue_message - Data successfully queue");
+#endif
+      
+    }
+    return 0;
+}
+
+void SCHC_Ack_on_error::message_reception_loop()
+{
+    while (_running)
+    {
+#ifdef MYTRACE
+        Serial.println("SCHC_Ack_on_error::message_reception_loop - Extracting message from the queue.");
+#endif
+        Data_packet_t receivedPacket;
+
+        if (xQueueReceive(_queue, &receivedPacket, portMAX_DELAY) == pdPASS)
+        {
+            this->execute(receivedPacket.msg, receivedPacket.len);
+
+            vTaskDelay(pdMS_TO_TICKS(1000)); // Pausar por 1000 ms
+        }
+
+    }
+    
+}
+
+uint8_t SCHC_Ack_on_error::TX_INIT_send_fragments(char *msg, int len)
+{
+#ifdef MYTRACE
+    Serial.println("SCHC_Ack_on_error::TX_INIT_send_fragments - Entering the function");
+#endif
+
     /* Dynamic SCHC parameters */
-    _currentState = STATE_TX_INIT;
     _currentWindow = 0;
     _currentFcn = (_windowSize)-1;
     _currentBitmap_ptr = 0;
     _currentTile_ptr = 0;
 
     uint8_t res;
-    res = this->divideInTiles(buffer, len);
+    res = this->divideInTiles(msg, len);
     if(res==1)
     {
-        Serial.println("SCHC_Ack_on_error::start - ERROR when splitting the message into tiles");
+        Serial.println("SCHC_Ack_on_error::TX_INIT_send_fragments - ERROR when splitting the message into tiles");
     }
 
-    res = this->createBitmapArray();
-    if(res==1)
-    {
-        Serial.println("SCHC_Ack_on_error::start - ERROR creating Bitmap Array");
-    }
-
-    /*
-    RFC8724
-    https://www.rfc-editor.org/rfc/rfc8724.html#name-ack-on-error-mode
-
-     8.4.3.1. Sender Behavior
-
-    A Regular SCHC Fragment message carries in its payload one or more tiles. 
-    If more than one tile is carried in one Regular SCHC Fragment:
-    the selected tiles MUST be contiguous in the original SCHC Packet, and
-    they MUST be placed in the SCHC Fragment Payload adjacent to one another, 
-    in the order they appear in the SCHC Packet, from the start of the SCHC Packet 
-    toward its end.
-    */
     _currentState = STATE_TX_SEND;
-    res = this->execute();
 #ifdef MYDEBUG
-    Serial.println("SCHC_Ack_on_error::start - Leaving the function");
+    Serial.println("Changing STATE: From STATE_TX_INIT --> STATE_TX_SEND");
+#endif
+
+    res = this->execute();
+
+#ifdef MYTRACE
+    Serial.println("SCHC_Ack_on_error::TX_INIT_send_fragments - Leaving the function");
 #endif
     return res;
 }
 
-uint8_t SCHC_Ack_on_error::execute(char *msg, int len)
-{
-#ifdef MYDEBUG
-    Serial.println("SCHC_Ack_on_error::execute - Entering the function");
-#endif
-    if(msg!=NULL)
-    {
-        // definir decoder para recepcion de mensajes
-    }
-    else
-    {
-        if(_currentState==STATE_TX_INIT)
-        {
-            Serial.println("SCHC_Ack_on_error::execute - ERROR: you cannot call the execute() method in STATE_TX_INIT");
-        }
-        else if(_currentState==STATE_TX_SEND)
-        {
-            this->TX_SEND_send_fragments();
-        }
-        else if(_currentState==STATE_TX_WAIT_x_ACK)
-        {
-            this->TX_WAIT_x_ACK_send_ack_req();
-        }
-    }
-
-#ifdef MYDEBUG
-    Serial.println("SCHC_Ack_on_error::execute - Leaving the function");
-#endif
-    return 0;
-}
-
 uint8_t SCHC_Ack_on_error::TX_SEND_send_fragments()
 {
-#ifdef MYDEBUG
+#ifdef MYTRACE
     Serial.println("SCHC_Ack_on_error::TX_SEND_send_fragment - Entering the function");
 #endif
 
@@ -127,16 +155,24 @@ uint8_t SCHC_Ack_on_error::TX_SEND_send_fragments()
 
     /* Variables temporales */
     int n_tiles_to_send = 0;        // numero de tiles a enviar
-    int newFcn = 0;                 // almacena el nuevo valor de FCN que será usado en el proximo envío
-    int newWindow = 0;              // almacena el nuevo valor de W que será usado en el proximo envío
-    uint8_t newBitmap_ptr = 0;      // almacena el nuevo valor de _currentBitmap_ptr que será usado en el proximo envío
     int n_remaining_win_tiles = 0;  // n de tiles restantes por enviar (usado en el modo de confirmacion por ventana) 
+    int n_remaining_tot_tiles = 0;  // n de full tiles totales que faltan por enviar
     int n_all_remaining_tiles = 0;  // n de tiles restantes por enviar (usado en el modo de confirmacion por sesion)
- 
+    int n_remaining_tiles     = 0;  // n de tiles que faltan por enviar. Su valor depende de si los tiles totales por enviar es mayor o menor a los tiles faltantes de enviar de la ventana
+    
+    SCHC_Message encoder;           // encoder 
+
     if(_ackMode==ACK_MODE_ACK_END_WIN)
     {
         n_remaining_win_tiles = _currentFcn + 1;                // numero de tiles de la ventana que faltan por enviar
-        if(n_remaining_win_tiles>payload_available_in_tiles)
+        n_remaining_tot_tiles = _nFullTiles - _currentTile_ptr; // numero total de tiles que faltan por enviar
+
+        if(n_remaining_tot_tiles <= n_remaining_win_tiles)
+            n_remaining_tiles = n_remaining_tot_tiles;
+        else
+            n_remaining_tiles = n_remaining_win_tiles;
+
+        if(n_remaining_tiles>payload_available_in_tiles)
         {
             /* Si la cantidad de tiles que faltan por enviar 
             para la ventana i-esima no alcanza en la MTU 
@@ -144,10 +180,37 @@ uint8_t SCHC_Ack_on_error::TX_SEND_send_fragments()
             */
             n_tiles_to_send = payload_available_in_tiles;
 
-            newBitmap_ptr = this->setBitmapArray(_currentTile_ptr, n_tiles_to_send);
-            newFcn = _currentFcn - n_tiles_to_send;
-            newWindow = _currentWindow;
-            _currentState = STATE_TX_SEND;
+            /* buffer que almacena todos los tiles que se van a enviar */
+            int payload_len         = n_tiles_to_send * _tileSize;  // tamaño del SCHC payload en bytes
+            char* schc_payload      = new char[payload_len];        // liberado en linea 215. buffer para el SCHC payload
+            char* schc_message      = new char[payload_len + 1];    // liberado en linea 214 buffer para el SCHC message (header + payload)            
+            
+            this->extractTiles(_currentTile_ptr, n_tiles_to_send, schc_payload);
+
+            /* Crea un mensaje SCHC en formato hexadecimal */
+            int schc_message_len = encoder.create_regular_fragment(_ruleID, _dTag, _currentWindow, _currentFcn, schc_payload, payload_len, schc_message);
+
+            /* Imprime los mensajes para visualizacion ordenada */
+            encoder.print_msg(SCHC_REGULAR_FRAGMENT_MSG, schc_message, schc_message_len);
+
+            /* Envía el mensaje a la capa 2*/
+            uint8_t res = _stack->send_frame(_ruleID, schc_message, schc_message_len);
+            if(res==1)
+            {
+                Serial.println("SCHC_Ack_on_error::sendRegularFragment - ERROR sending L2 frame");
+                return 1;
+            }
+
+            /* Eliminar los punteros a buffers*/
+            delete[] schc_message;
+            delete[] schc_payload;
+
+            
+            _currentTile_ptr    = _currentTile_ptr + n_tiles_to_send;
+            _currentFcn         = _currentFcn - n_tiles_to_send;
+            _currentState       = STATE_TX_SEND;
+
+            this->execute();
         }
         else
         {
@@ -156,12 +219,88 @@ uint8_t SCHC_Ack_on_error::TX_SEND_send_fragments()
             significa que este es el ultimo envio para la 
             ventana i-esima
             */
-            n_tiles_to_send = n_remaining_win_tiles;
+            n_tiles_to_send = n_remaining_tiles;
 
-            newBitmap_ptr = this->setBitmapArray(_currentTile_ptr, n_tiles_to_send);
-            newFcn = (_windowSize)-1;
-            newWindow = _currentWindow + 1;
-            _currentState = STATE_TX_WAIT_x_ACK;
+            /* buffer que almacena todos los tiles que se van a enviar */
+            int payload_len         = n_tiles_to_send * _tileSize;  // tamaño del SCHC payload en bytes
+            char* schc_payload      = new char[payload_len];        // liberado en linea 258. buffer para el SCHC payload
+            char* schc_message      = new char[payload_len + 1];    // liberado en linea 257. buffer para el SCHC message (header + payload)
+
+            this->extractTiles(_currentTile_ptr, n_tiles_to_send, schc_payload);
+
+            /* Crea un mensaje SCHC en formato hexadecimal */
+            int schc_message_len = encoder.create_regular_fragment(_ruleID, _dTag, _currentWindow, _currentFcn, schc_payload, payload_len, schc_message);
+
+            /* Imprime los mensajes para visualizacion ordenada */
+            encoder.print_msg(SCHC_REGULAR_FRAGMENT_MSG, schc_message, schc_message_len); 
+
+            /* Envía el mensaje a la capa 2*/
+            uint8_t res = _stack->send_frame(_ruleID, schc_message, schc_message_len);
+            if(res==1)
+            {
+                Serial.println("SCHC_Ack_on_error::sendRegularFragment - ERROR sending L2 frame");
+                return 1;
+            }
+
+            /* Eliminar los punteros a buffers*/
+            delete[] schc_message;
+            delete[] schc_payload;
+
+            _currentTile_ptr    = _currentTile_ptr + n_tiles_to_send;
+            _currentState       = STATE_TX_WAIT_x_ACK;
+
+
+            /* Se envia el ultimo tile en un SCHC All-1 */
+            if(_currentWindow == (_nWindows - 1))
+            {
+                /* buffer que almacena todos los tiles que se van a enviar */
+                payload_len                 = _lastTileSize;                    // tamaño del last tile en bytes
+                char* schc_all_1_message    = new char[payload_len + 1 + 4];    // liberado en linea 285. buffer para el SCHC message: header (1B) + rcs (4B) + payload
+                /* Crea un mensaje SCHC en formato hexadecimal */
+                int schc_all_1_message_len = encoder.create_all_1_fragment(_ruleID, _dTag, _currentWindow, _rcs, _lastTile, payload_len, schc_all_1_message);
+
+                /* Imprime los mensajes para visualizacion ordenada */
+                encoder.print_msg(SCHC_ALL1_FRAGMENT_MSG, schc_all_1_message, schc_all_1_message_len); 
+
+                /* Envía el mensaje a la capa 2*/
+                uint8_t res = _stack->send_frame(_ruleID, schc_all_1_message, schc_all_1_message_len);
+                if(res==1)
+                {
+                    Serial.println("SCHC_Ack_on_error::sendRegularFragment - ERROR sending L2 frame");
+                    return 1;
+                }
+
+                /* Eliminar los punteros a buffers*/
+                delete[] schc_all_1_message;
+            }
+
+            /* Se envía un SCHC ACK REQ para empujar el envio en el downlink
+            del SCHC ACK enviado por el SCHC Gateway */
+            vTaskDelay(pdMS_TO_TICKS(1000)); // Pausar por 1000 ms
+
+            SCHC_Message encoder_2;
+            char* schc_ack_req_msg      = new char[1];      // liberado en linea 308
+            int schc_ack_req_msg_len    = encoder_2.create_ack_request(_ruleID, _dTag, _currentWindow, schc_ack_req_msg);
+
+            /* Imprime los mensajes para visualizacion ordenada */
+            encoder_2.print_msg(SCHC_ACK_REQ_MSG, schc_ack_req_msg, schc_ack_req_msg_len);
+
+            /* Envía el mensaje a la capa 2*/
+            res = _stack->send_frame(_ruleID, schc_ack_req_msg, schc_ack_req_msg_len);
+            if(res==1)
+            {
+                Serial.println("SCHC_Ack_on_error::TX_WAIT_x_ACK_send_ack_req - ERROR sending L2 frame");
+                return 1;
+            }
+
+            /* Eliminar los punteros a buffers*/
+            delete[] schc_ack_req_msg;
+
+#ifdef MYDEBUG
+            Serial.println("Changing STATE: From STATE_TX_SEND --> STATE_TX_WAIT_x_ACK");
+#endif
+            this->message_reception_loop();
+
         }
     }
     else if(_ackMode==ACK_MODE_ACK_END_SES || _ackMode==ACK_MODE_COMPOUND_ACK)
@@ -175,10 +314,10 @@ uint8_t SCHC_Ack_on_error::TX_SEND_send_fragments()
             */
             n_tiles_to_send = payload_available_in_tiles;
 
-            newBitmap_ptr = this->setBitmapArray(_currentTile_ptr, n_tiles_to_send);
-            newFcn = this->getCurrentFCN(_currentTile_ptr + n_tiles_to_send);
-            newWindow = this->getCurrentWindow(_currentTile_ptr + n_tiles_to_send);
-            _currentState = STATE_TX_SEND;
+            // newBitmap_ptr = this->setBitmapArray(_currentTile_ptr, n_tiles_to_send);
+            // newFcn = this->getCurrentFCN(_currentTile_ptr + n_tiles_to_send);
+            // newWindow = this->getCurrentWindow(_currentTile_ptr + n_tiles_to_send);
+            // _currentState = STATE_TX_SEND;
         }
         else
         {
@@ -188,127 +327,108 @@ uint8_t SCHC_Ack_on_error::TX_SEND_send_fragments()
             */
             n_tiles_to_send = n_all_remaining_tiles;
 
-            newBitmap_ptr = this->setBitmapArray(_currentTile_ptr, n_tiles_to_send);
-            newFcn = _windowSize;
-            newWindow = this->getCurrentWindow(_currentTile_ptr + n_tiles_to_send);
-            _currentState = STATE_TX_WAIT_x_ACK;
+            // newBitmap_ptr = this->setBitmapArray(_currentTile_ptr, n_tiles_to_send);
+            // newFcn = _windowSize;
+            // newWindow = this->getCurrentWindow(_currentTile_ptr + n_tiles_to_send);
+            // _currentState = STATE_TX_WAIT_x_ACK;
         }        
     }
 
-    /* buffer que almacena todos los tiles que se van a enviar */
-    int payload_len = n_tiles_to_send * _tileSize;  // in bytes
-    char* payload = new char[payload_len];
-
-    this->extractTiles(_currentTile_ptr, n_tiles_to_send, payload);
-
-    /* Crea un mensaje SCHC en formato hexadecimal */
-    SCHC_Message msg;
-    char* msgBuffer = new char[(n_tiles_to_send * _tileSize) + 1];
-    int msgBuffer_len = msg.createRegularFragment(_ruleID, _dTag, _currentWindow, _currentFcn, payload, payload_len, msgBuffer);
-   
-    /* Imprime los mensajes para visualizacion ordenada */
-    msg.printMsg(SCHC_FRAG_PROTOCOL_LORAWAN, SCHC_REGULAR_FRAGMENT_MSG, msgBuffer, msgBuffer_len);    
-    printCurrentBitmap(_currentWindow);
-
-    /* Envía el mensaje a la capa 2*/
-    uint8_t res = _stack->send_frame(_ruleID, msgBuffer, msgBuffer_len);
-
-    /* Eliminar los punteros a buffers*/
-    delete[] msgBuffer;
-    delete[] payload;
-    if(res==1)
-    {
-        Serial.println("SCHC_Ack_on_error::sendRegularFragment - ERROR sending L2 frame");
-        return 1;
-    }
-
-    if(_currentState==STATE_TX_WAIT_x_ACK)
-    {
-
-    }
-    else
-    {
-        _currentBitmap_ptr = newBitmap_ptr;
-        _currentFcn = newFcn;
-        _currentWindow = newWindow;
-        _currentTile_ptr = _currentTile_ptr + n_tiles_to_send;
-    }
-
-    this->execute();
-    
-#ifdef MYDEBUG
+#ifdef MYTRACE
     Serial.println("SCHC_Ack_on_error::TX_SEND_send_fragment - Leaving the function");
 #endif
 
     return 0;
 }
 
-uint8_t SCHC_Ack_on_error::TX_WAIT_x_ACK_send_ack_req()
+uint8_t SCHC_Ack_on_error::TX_WAIT_x_ACK_receive_ack(char *msg, int len)
 {
-#ifdef MYDEBUG
+#ifdef MYTRACE
     Serial.println("SCHC_Ack_on_error::TX_WAIT_x_ACK_send_ack_req - Entering the function");
 #endif
+    
+    SCHC_Message decoder;
+    uint8_t msg_type = decoder.get_msg_type(SCHC_FRAG_LORAWAN, SCHC_FRAG_UPDIR_RULE_ID, msg, len);
 
-    uint8_t res = 0;
-    for(int i=0; i<_maxAckReq; i++)
+    if(msg_type == SCHC_ACK_MSG)
     {
-        uint32_t timer_1 = millis();
-        while(millis()-timer_1 < (_retransTimer*1000))
+        decoder.decodeMsg(SCHC_FRAG_LORAWAN, SCHC_FRAG_UPDIR_RULE_ID, msg, len);
+        uint8_t c = decoder.get_c();
+        uint8_t w = decoder.get_w();
+        if(c == 1 && w == (_nWindows-1))
         {
-            delay(250);
-        }
+            /* SCHC ACK incluye bitmap sin errores y es un ACK a la ultima ventana*/
 
-        SCHC_Message msg;
-        char* msgBuffer = new char[1];
-        int msgBuffer_len = msg.createACKRequest(_ruleID, _dTag, _currentWindow, msgBuffer);
+            decoder.print_msg(SCHC_ACK_MSG, msg, len);
 
-        /* Imprime los mensajes para visualizacion ordenada */
-        msg.printMsg(SCHC_FRAG_PROTOCOL_LORAWAN, SCHC_ACK_REQ_MSG, msgBuffer, msgBuffer_len);
-
-        /* Envía el mensaje a la capa 2*/
-        res = _stack->send_frame(_ruleID, msgBuffer, msgBuffer_len);
-
-        /* Eliminar los punteros a buffers*/
-        delete[] msgBuffer;
-
-        if(res==1)
-        {
-            Serial.println("SCHC_Ack_on_error::TX_WAIT_x_ACK_send_ack_req - ERROR sending L2 frame");
-            return 1;
-        }
-
-    }
-
-    SCHC_Message msg;
-    char* msgBuffer = new char[1];
-    int msgBuffer_len = msg.createSenderAbort(_ruleID, _dTag, _currentWindow, msgBuffer);
-
-    /* Imprime los mensajes para visualizacion ordenada */
-    msg.printMsg(SCHC_FRAG_PROTOCOL_LORAWAN, SCHC_SENDER_ABORT_MSG, msgBuffer, msgBuffer_len);
-
-    /* Envía el mensaje a la capa 2*/
-    res = _stack->send_frame(_ruleID, msgBuffer, msgBuffer_len);
-
-    /* Eliminar los punteros a buffers*/
-    delete[] msgBuffer;
-
-    if(res==1)
-    {
-        Serial.println("SCHC_Ack_on_error::TX_WAIT_x_ACK_send_ack_req - ERROR sending L2 frame");
-        return 1;
-    }
-
-Serial.println("SCHC_Ack_on_error::TX_WAIT_x_ACK_send_ack_req - Session Aborted by SCHC sender");
-
+            _currentFcn         = (_windowSize)-1;
+            _currentWindow      = _currentWindow + 1; 
+            _currentState = STATE_TX_END;
+            
 #ifdef MYDEBUG
+            Serial.println("Changing STATE: From STATE_TX_WAIT_x_ACK --> STATE_TX_END");
+#endif
+            this->execute();
+        }
+        else if(c == 1 && w != (_nWindows-1))
+        {
+            /* SCHC ACK incluye bitmap sin errores y NO es un ACK para la ultima ventana*/
+            decoder.print_msg(SCHC_ACK_MSG, msg, len);
+
+            _currentFcn         = (_windowSize)-1;
+            _currentWindow      = _currentWindow + 1; 
+            _currentState = STATE_TX_SEND;
+            
+#ifdef MYDEBUG
+            Serial.println("Changing STATE: From STATE_TX_WAIT_x_ACK --> STATE_TX_SEND");
+#endif
+            this->execute();            
+
+        }
+        else if(c == 0)
+        {
+            // TODO: SCHC ACK incluye bitmap con errores
+        }
+
+    }
+    else if(msg_type == SCHC_RECEIVER_ABORT_MSG)
+    {
+#ifdef MYDEBUG
+            Serial.println("Receiving a SCHC Receiver-Abort message. Releasing resources...");
+#endif
+            // TODO: Liberar maquinas de estados y recursos de memoria. Se debe retornar la funcion SCHC_Fragmenter_End_Device::send()
+    }
+
+
+#ifdef MYTRACE
     Serial.println("SCHC_Ack_on_error::TX_WAIT_x_ACK_send_ack_req - Leaving the function");
 #endif 
     return 0;
 }
 
+uint8_t SCHC_Ack_on_error::TX_END_free_resources()
+{
+    // TODO: Liberar recursos, liberar maquina, liberar sesion
+#ifdef MYINFO
+    Serial.println("SCHC_Ack_on_error::TX_END_free_resources - Releasing resources and finish machines and session");
+#endif
+
+ 
+    for(int i = 0 ; i < _nFullTiles ; i++ )
+    {
+        delete[] _tilesArray[i];
+    }
+    delete[] _tilesArray;
+    delete[] _lastTile;
+
+    _running = false;
+
+    return 0;
+}
+
 uint8_t SCHC_Ack_on_error::mtuUpgrade(int mtu)
 {
-#ifdef MYDEBUG
+#ifdef MYTRACE
     Serial.println("SCHC_Ack_on_error::mtuUpgrade - Entering the function");
 #endif
 
@@ -319,7 +439,7 @@ uint8_t SCHC_Ack_on_error::mtuUpgrade(int mtu)
 #endif
     _current_L2_MTU = mtu;
 
-#ifdef MYDEBUG
+#ifdef MYTRACE
     Serial.println("SCHC_Ack_on_error::mtuUpgrade - Leaving the function");
 #endif
 
@@ -331,7 +451,7 @@ uint8_t SCHC_Ack_on_error::divideInTiles(char *buffer, int len)
 /* Creates an array of size _nFullTiles x _tileSize to store the message. 
 Each row of the array is a tile of tileSize bytes. It also determines 
 the number of SCHC windows.*/
-#ifdef MYDEBUG
+#ifdef MYTRACE
     Serial.println("SCHC_Ack_on_error::divideInTiles - Entering the function");
 #endif
 
@@ -365,15 +485,15 @@ Implementations must ensure that:
 #endif 
 
     // memory allocated for elements of rows.
-    _tilesArray = new char*[_nFullTiles];
+    _tilesArray = new char*[_nFullTiles];           // Liberado en metodo SCHC_Ack_on_error::TX_END_free_resources()
 
     // memory allocated for  elements of each column.  
     for(int i = 0 ; i < _nFullTiles ; i++ )
     {
-        _tilesArray[i] = new char[_tileSize];
+        _tilesArray[i] = new char[_tileSize];       // Liberado en metodo SCHC_Ack_on_error::TX_END_free_resources()
     }
 
-    uint8_t k=0;
+    int k=0;
     for(int i=0; i<_nFullTiles; i++)
     {
         for(int j=0; j<_tileSize;j++)
@@ -383,7 +503,7 @@ Implementations must ensure that:
         }
     }
 
-    _lastTile = new char[_lastTileSize];
+    _lastTile = new char[_lastTileSize];            // Liberado en metodo SCHC_Ack_on_error::TX_END_free_resources()
     for(int i=0; i<_lastTileSize; i++)
     {
         _lastTile[i] = buffer[k];
@@ -408,18 +528,21 @@ Implementations must ensure that:
         _nWindows = 1;
     }
 #ifdef MYINFO
-    Serial.print("SCHC_Ack_on_error::divideInTiles - SCHC Windows number: ");
+    Serial.print("SCHC_Ack_on_error::divideInTiles - number of SCHC Windows: ");
     Serial.println(_nWindows);
 #endif
 
+    //this->printTileArray();
 
-    // // free the allocated memory 
-    // for( uint8_t i = 0 ; i < len ; i++ ) {
-    //     delete [] _tilesArray[i];
-    // }
-    // delete [] _tilesArray;
+    /* Calculo del RCS de todo el mensaje. Será usado en el envío de un SCHC All-1 fragment*/
+    _rcs = this->calculate_crc32(buffer, len);
+#ifdef MYINFO
+    Serial.print("SCHC_Ack_on_error::divideInTiles - RCS before to send: ");
+    Serial.println(_rcs);
+#endif
 
-#ifdef MYDEBUG
+
+#ifdef MYTRACE
     Serial.println("SCHC_Ack_on_error::divideInTiles - Leaving the function");
 #endif
 
@@ -428,7 +551,7 @@ Implementations must ensure that:
 
 uint8_t SCHC_Ack_on_error::extractTiles(uint8_t firstTileID, uint8_t nTiles, char *buff)
 {
-#ifdef MYDEBUG
+#ifdef MYTRACE
     Serial.println("SCHC_Ack_on_error::extractTiles - Entering the function");
 #endif
 
@@ -442,7 +565,7 @@ uint8_t SCHC_Ack_on_error::extractTiles(uint8_t firstTileID, uint8_t nTiles, cha
         }
     }
 
-#ifdef MYDEBUG
+#ifdef MYTRACE
     Serial.println("SCHC_Ack_on_error::extractTiles - Leaving the function");
 #endif
 
@@ -499,45 +622,7 @@ uint8_t SCHC_Ack_on_error::getCurrentFCN(int tile_ptr)
     return 0;
 }
 
-uint8_t SCHC_Ack_on_error::setBitmapArray(int tile_ptr, int tile_sent)
-{
-    /* Se obtiene la posicion al Bitmap Array
-    a partir de la posicion del tile que se está enviando */
-    uint8_t bitmap_ptr = this->getCurrentBitmap_ptr(tile_ptr);
-
-    if((bitmap_ptr + tile_sent) <= _windowSize)
-    {
-        /* En este caso todos los tiles enviados
-        pertenecen a la misma ventana */
-        for(int i=bitmap_ptr; i<(bitmap_ptr + tile_sent); i++)
-        {
-            _currentBitmapArray[_currentWindow][i] = true;
-        }
-        return bitmap_ptr + tile_sent;
-    }
-    else
-    {
-        /* En este caso los tiles enviados
-        pertenecen a la misma ventana (i) y a la (i+1)*/
-        for(int i=bitmap_ptr; i<(_windowSize); i++)
-        {
-            Serial.println(i);
-            _currentBitmapArray[_currentWindow][i] = true;
-        }
-
-        for(int i=0; i<((bitmap_ptr+tile_sent)-(_windowSize)); i++)
-        {
-            Serial.println(i);
-            _currentBitmapArray[_currentWindow+1][i] = true;
-        }
-        return (bitmap_ptr+tile_sent)-(_windowSize);
-    }
-
-
-    return 0;
-}
-
-uint8_t SCHC_Ack_on_error::getCurrentBitmap_ptr(int tile_ptr)
+int SCHC_Ack_on_error::getCurrentBitmap_ptr(int tile_ptr)
 {
     if(tile_ptr < _windowSize)
     {
@@ -560,47 +645,6 @@ uint8_t SCHC_Ack_on_error::getCurrentBitmap_ptr(int tile_ptr)
         Serial.println("SCHC_Ack_on_error::getCurrentBitmap_ptr - ERROR: In LoRaWAN, it is not possible that more than (4 * _windowSize)) tiles");
     }
     return 0;
-}
-
-uint8_t SCHC_Ack_on_error::createBitmapArray()
-{
-    // memory allocated for elements of rows.
-    _currentBitmapArray = new bool*[_nWindows];
-
-    // memory allocated for  elements of each column.  
-    for(int i = 0 ; i < _nWindows ; i++ )
-    {
-        _currentBitmapArray[i] = new bool[_windowSize];
-    }
-
-    int k=0;
-    for(int i=0; i<_nWindows; i++)
-    {
-        for(int j=0; j<_windowSize;j++)
-        {
-            _currentBitmapArray[i][j] = false;
-            k++;
-        }
-    }
-
-    return 0;
-}
-
-void SCHC_Ack_on_error::printCurrentBitmap(uint8_t nWindow)
-{
-    Serial.print(" - Bitmap: "); 
-    for(int i=0; i<_windowSize; i++)
-    {
-        if(_currentBitmapArray[nWindow][i])
-        {
-            Serial.print("1");
-        }
-        else
-        {
-            Serial.print("0");
-        }
-    }
-    Serial.println();
 }
 
 void SCHC_Ack_on_error::printTileArray()
@@ -649,22 +693,25 @@ void SCHC_Ack_on_error::printTileArray()
     Serial.println("***********************************************");
 }
 
-void SCHC_Ack_on_error::printBitmapArray()
+uint32_t SCHC_Ack_on_error::calculate_crc32(const char *data, size_t length) 
 {
-    for(int i=0; i<_nWindows; i++)
-    {
-        for(int j=0; j<_windowSize; j++)
-        {
-            if(_currentBitmapArray[i][j])
-            {
-                Serial.print("1");
-            }
-            else
-            {
-                Serial.print("0");
+    // Polinomio CRC32 (reflejado)
+    const uint32_t polynomial = 0xEDB88320;
+    uint32_t crc = 0xFFFFFFFF;
+
+    // Procesar cada byte en el buffer
+    for (size_t i = 0; i < length; i++) {
+        crc ^= static_cast<uint8_t>(data[i]); // Asegúrate de que el dato sea tratado como uint8_t
+
+        // Procesar los 8 bits del byte
+        for (int j = 0; j < 8; j++) {
+            if (crc & 1) {
+                crc = (crc >> 1) ^ polynomial;
+            } else {
+                crc >>= 1;
             }
         }
-        Serial.println();        
     }
-}
 
+    return crc ^ 0xFFFFFFFF;
+}

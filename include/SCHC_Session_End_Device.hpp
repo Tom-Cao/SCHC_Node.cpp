@@ -6,6 +6,7 @@
 #include "SCHC_State_Machine.hpp"
 #include "SCHC_Stack_L2.hpp"
 #include <Arduino.h>
+#include <FreeRTOS.h>
 
 
 class SCHC_Session_End_Device
@@ -14,9 +15,9 @@ class SCHC_Session_End_Device
         SCHC_Session_End_Device();
         uint8_t initialize(uint8_t protocol, uint8_t direction, uint8_t dTag, SCHC_Stack_L2* stack_ptr);
         uint8_t startFragmentation(char *buffer, int len);
-        bool getIsUsed();
-        void setIsUsed(bool isUsed);
-        uint8_t getDTag();
+        bool    getIsUsed();
+        void    setIsUsed(bool isUsed);
+        void    process_message(char* msg, int len);
     private:
         uint8_t createStateMachine();
         uint8_t destroyStateMachine();
@@ -36,8 +37,9 @@ class SCHC_Session_End_Device
         uint8_t _txAttemptsCounter;     // transmission attempt counter
         uint8_t _rxAttemptsCounter;     // reception attempt counter
         int _maxMsgSize;                // Maximum size of a SCHC packet in bytes
-        SCHC_State_Machine* _stateMachine;
-        SCHC_Stack_L2* _stack;
+        SCHC_State_Machine*     _stateMachine;
+        SCHC_Stack_L2*          _stack;
+        
 };
 
 #endif

@@ -48,7 +48,7 @@ void setup()
     digitalWrite(LED_BUILTIN, LOW);
 
     frag = new SCHC_Fragmenter_End_Device();
-    frag->initialize(SCHC_FRAG_PROTOCOL_LORAWAN);
+    frag->initialize(SCHC_FRAG_LORAWAN);
 
     myTicker.start();
 #ifdef MYDEBUG
@@ -81,13 +81,13 @@ void periodicWakeup()
     //String s = "The SCHC specification RFC8724 describes generic header compression and fragmentation techniques that can be used on all Low-Power Wide Area Network (LPWAN) technologies defined in RFC8376. Even though those technologies share a great number of common features like star-oriented topologies, network architecture, devices with communications that are mostly quite predictable, etc., they do have some slight differences with respect to payload sizes, reactiveness, etc.SCHC provides a generic framework that enables those devices to communicate on IP networks. However, for efficient performance, some parameters and modes of operation need to be set appropriately for each of the LPWAN technologies.This document describes the parameters and modes of operation when SCHC is used over LoRaWAN networks. The LoRaWAN protocol is specified by the LoRa Alliance in LORAWAN-SPEC.";
 
     /* 870 bytes */
-    String s = "The SCHC specification RFC8724 describes generic header compression and fragmentation techniques that can be used on all Low-Power Wide Area Network (LPWAN) technologies defined in RFC8376. Even though those technologies share a great number of common features like star-oriented topologies, network architecture, devices with communications that are mostly quite predictable, etc., they do have some slight differences with respect to payload sizes, reactiveness, etc.SCHC provides a generic framework that enables those devices to communicate on IP networks. However, for efficient performance, some parameters and modes of operation need to be set appropriately for each of the LPWAN technologies.This document describes the parameters and modes of operation when SCHC is used over LoRaWAN networks. The LoRaWAN protocol is specified by the LoRa Alliance in LORAWAN-";
+    String s = "The SCHC specification RFC8724 describes generic header compression and fragmentation techniques that can be used on all Low-Power Wide Area Network (LPWAN) technologies defined in RFC8376. Even though those technologies share a great number of common features like star-oriented topologies, network architecture, devices with communications that are mostly quite predictable, etc., they do have some slight differences with respect to payload sizes, reactiveness, etc.SCHC provides a generic framework that enables those devices to communicate on IP networks. However, for efficient performance, some parameters and modes of operation need to be set appropriately for each of the LPWAN technologies.This document describes the parameters and modes of operation when SCHC is used over LoRaWAN networks. The LoRaWAN protocol is specified by the LoRa Alliance in LORAWAN-.";
 
-    Serial.println(s.length()+1);
-    char* cstr = new char [s.length()+1];
+    Serial.println(s.length());           // se suma 1 por el fin de linea
+    char* cstr = new char [s.length()];   // se suma 1 por el fin de linea
     strcpy(cstr, s.c_str());
 
-    frag->send(cstr, s.length()+1);
+    frag->send(cstr, s.length());
 
     delete[] cstr;
     myTicker.resume();

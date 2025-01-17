@@ -3,6 +3,7 @@
 
 /* DEBUG Level */
 // uncomment the line of the log level you want to activate
+//#define MYTRACE
 //#define MYDEBUG
 #define MYINFO
 //#define SERIAL_CONNECTION
@@ -10,14 +11,20 @@
 
 #define _SESSION_POOL_SIZE 10   // Sessions numbers
 
+#define _LORAWAN_BUFFER_SIZE 300         // buffer size (in bytes) for storing the received lorawan message
+
+/* Fragmentation Rule ID*/
+#define SCHC_FRAG_UPDIR_RULE_ID 20
+#define SCHC_FRAG_DOWNDIR_RULE_ID 21  
+
 /* Fragmentation traffic direction */
-#define SCHC_FRAG_DIRECTION_UPLINK 1
-#define SCHC_FRAG_DIRECTION_DOWNLINK 2
+#define SCHC_FRAG_UP 1
+#define SCHC_FRAG_DOWN 2
 
 /* L2 Protocols */
-#define SCHC_FRAG_PROTOCOL_LORAWAN 1
-#define SCHC_FRAG_PROTOCOL_NBIOT 2
-#define SCHC_FRAG_PROTOCOL_SIGFOX 3
+#define SCHC_FRAG_LORAWAN 1
+#define SCHC_FRAG_NBIOT 2
+#define SCHC_FRAG_SIGFOX 3
 
 /* Machine States */
 #define STATE_TX_INIT 0
@@ -33,7 +40,7 @@
 #define SCHC_ACK_MSG 2
 #define SCHC_ACK_REQ_MSG 3
 #define SCHC_SENDER_ABORT_MSG 4
-#define SCHC RECEIVER_ABORT_MSG 5 
+#define SCHC_RECEIVER_ABORT_MSG 5 
 
 /* ACK Modes */
 #define ACK_MODE_ACK_END_WIN 1

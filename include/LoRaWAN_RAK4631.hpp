@@ -5,18 +5,22 @@
 #include "SCHC_Stack_L2.hpp"
 #include "SCHC_Macros.hpp"
 
+class SCHC_Fragmenter_End_Device;
+
 class LoRaWAN_RAK4631: public SCHC_Stack_L2
 {
     public:
         LoRaWAN_RAK4631();
-        virtual uint8_t initialize_stack(void);
-        virtual uint8_t send_frame(uint8_t ruleID, char* msg, int len);
-        virtual int getMtu(bool consider_Fopt);
+        uint8_t     initialize_stack(void);
+        uint8_t     send_frame(uint8_t ruleID, char* msg, int len);
+        int         getMtu(bool consider_Fopt);
+        void        set_fragmenter(SCHC_Fragmenter_End_Device* frag);
         static void lorawan_has_joined_handler(void);
         static void lorawan_join_failed_handler(void);
         static void lorawan_rx_handler(lmh_app_data_t *app_data);
         static void lorawan_confirm_class_handler(DeviceClass_t Class);
         static void lorawan_unconf_finished(void);
+        static SCHC_Fragmenter_End_Device* _frag;
     private:
         bool _doOTAA;
         lmh_callback_t g_lora_callbacks;

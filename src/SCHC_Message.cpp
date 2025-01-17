@@ -5,7 +5,7 @@ SCHC_Message::SCHC_Message()
 
 }
 
-int SCHC_Message::createRegularFragment(uint8_t ruleID, uint8_t dtag, uint8_t w, uint8_t fcn, char *payload, int payload_len, char *buffer)
+int SCHC_Message::create_regular_fragment(uint8_t ruleID, uint8_t dtag, uint8_t w, uint8_t fcn, char *payload, int payload_len, char *buffer)
 {
     /* Mask definition */ 
     byte w_mask = 0xC0;
@@ -27,7 +27,7 @@ int SCHC_Message::createRegularFragment(uint8_t ruleID, uint8_t dtag, uint8_t w,
     return (payload_len + 1);
 }
 
-int SCHC_Message::createACKRequest(uint8_t ruleID, uint8_t dtag, uint8_t w, char *buffer)
+int SCHC_Message::create_ack_request(uint8_t ruleID, uint8_t dtag, uint8_t w, char *buffer)
 {
     /* Mask definition */ 
     byte w_mask = 0xC0;
@@ -43,7 +43,7 @@ int SCHC_Message::createACKRequest(uint8_t ruleID, uint8_t dtag, uint8_t w, char
     return 1;
 }
 
-int SCHC_Message::createSenderAbort(uint8_t ruleID, uint8_t dtag, uint8_t w, char *buffer)
+int SCHC_Message::create_sender_abort(uint8_t ruleID, uint8_t dtag, uint8_t w, char *buffer)
 {
         /* Mask definition */ 
     byte w_mask = 0xC0;
@@ -59,46 +59,127 @@ int SCHC_Message::createSenderAbort(uint8_t ruleID, uint8_t dtag, uint8_t w, cha
     return 1;
 }
 
-SCHC_Message *SCHC_Message::decodeMsg(uint8_t protocol, char *msg, int len)
+int SCHC_Message::create_all_1_fragment(uint8_t ruleID, uint8_t dtag, uint8_t w, uint32_t rcs, char *payload, int payload_len, char *buffer)
 {
-    // if(protocol==SCHC_FRAG_PROTOCOL_LORAWAN)
-    // {
-    //     byte schc_header = (byte)msg[0];
+    /* SCHC header construction. byte 1 */
+    byte w_mask = 0xC0;
+    uint8_t new_w = (w << 6) & w_mask;
+    uint8_t new_fcn = 0x3F;
+    uint8_t header = new_w | new_fcn;
+    buffer[0] = header;
 
-    //     // Mask definition
-    //     byte w_mask = 0xC0;
-    //     byte fcn_mask = 0x3F;
-    //     byte c_mask = 0x20;
+    /* SCHC header construction. byte 2 al byte 5 */
+    buffer[1] = (rcs >> 24) & 0xFF; // Byte más significativo
+    //Serial.print((uint8_t)buffer[1], HEX);
+    buffer[2] = (rcs >> 16) & 0xFF;
+    //Serial.print((uint8_t)buffer[2], HEX);
+    buffer[3] = (rcs >> 8) & 0xFF;
+    //Serial.print((uint8_t)buffer[3], HEX);
+    buffer[4] = rcs & 0xFF;        // Byte menos significativo
+    //Serial.print((uint8_t)buffer[4], HEX);
 
-    //     uint8_t w = w_mask && schc_header;
-        
-    // }
+    /* SCHC payload */
+    for(int i=0; i<payload_len; i++)
+    {
+        buffer[5+i] = payload[i];
+    }
 
-    return this;
+    int ret = 1 + 4 + payload_len;
+
+    return ret;
 }
 
-void SCHC_Message::printMsg(uint8_t protocol, uint8_t msgType, char *msg, int len)
+uint8_t SCHC_Message::get_msg_type(uint8_t protocol, int rule_id, char *msg, int len)
 {
-    // if(protocol==SCHC_FRAG_PROTOCOL_LORAWAN)
-    // {
-    //     Serial.print("SCHC Header ---> ");
-    //     printBin((uint8_t)msg[0]);
-    //     Serial.println();
+    if(protocol==SCHC_FRAG_LORAWAN)
+    {
+        uint8_t schc_header = msg[0];
+        uint8_t c_mask = 0x20;                // Mask definition
+        uint8_t _c = (c_mask & schc_header) >> 5;
+        //uint8_t _dtag = 0;                      // In LoRaWAN, dtag is not used
 
-    //     Serial.print("SCHC Payload --> ");
-    //     for(int i=1; i<len; i++)
-    //     {
-    //         Serial.print(msg[i]);
-    //     }
-    //     Serial.println();
-    // }
+        if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==1 && len==2)
+            _msg_type = SCHC_RECEIVER_ABORT_MSG;
+        else if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==1)
+            _msg_type = SCHC_ACK_MSG;
+        else if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==0)
+            _msg_type = SCHC_ACK_MSG;
+    }
 
-    // |-----W=0, FCN=27----->| 4 tiles sent
+    return _msg_type;
+}
 
+uint8_t SCHC_Message::decodeMsg(uint8_t protocol, int rule_id, char *msg, int len)
+{
+    if(protocol==SCHC_FRAG_LORAWAN && rule_id == SCHC_FRAG_UPDIR_RULE_ID)
+    {
+        uint8_t schc_header = msg[0];
+
+        // Mask definition
+        uint8_t w_mask = 0xC0;
+        uint8_t c_mask = 0x20;
+        _c = (c_mask & schc_header) >> 5;
+        _w = (w_mask & schc_header) >> 6;
+
+        if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==1 && len==2 && msg[1] == 0xFF)
+        {
+            // TODO: Se ha recibido un SCHC Receiver-Abort. No hacer nada.
+        }
+        else if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==1)
+        {
+            // TODO: Se ha recibido un SCHC ACK (sin errores)
+            _bitmap = new char[63];
+            for(int i=0; i<63; i++)
+            {
+                _bitmap[i] = 1;
+            }
+        }
+        else if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==0)
+        {
+            // TODO: Se ha recibido un SCHC ACK (con errores)
+            int compress_bitmap_len = (len-1)*8 + 5;
+            char compress_bitmap[compress_bitmap_len];
+            _bitmap = new char[63];
+
+            int k = 0;
+            for(int i=4; i>=0; i--)
+            {
+                compress_bitmap[k] = static_cast<uint8_t>((msg[0] >> i) & 0x01);
+                k++;
+            }
+
+            for(int i=1; i<len; i++)
+            {
+                for(int j=7; j>=0; j--)
+                {
+                    compress_bitmap[k] = static_cast<uint8_t>((msg[i] >> j) & 0x01);
+                    k++;
+                }
+            }
+
+            memcpy(_bitmap, compress_bitmap, compress_bitmap_len);
+            for(int i=compress_bitmap_len; i<63; i++)
+            {
+                _bitmap[i] = 1;
+            }
+
+        }
+        
+    }
+
+    return 0;
+}
+
+void SCHC_Message::print_msg(uint8_t msgType, char *msg, int len)
+{
     if(msgType==SCHC_REGULAR_FRAGMENT_MSG)
     {
-        uint8_t w = (msg[0] & 0xC0) >> 6;
-        uint8_t fcn = (msg[0] & 0x3F);
+        uint8_t schc_header = msg[0];
+        uint8_t w_mask      = 0xC0;
+        uint8_t fcn_mask    = 0x3F;
+        uint8_t w           = (w_mask & schc_header) >> 6;
+        uint8_t fcn         = fcn_mask & schc_header;
+        
         Serial.print("|-----W=");
         Serial.print(w);
         Serial.print(", FCN=");
@@ -113,7 +194,7 @@ void SCHC_Message::printMsg(uint8_t protocol, uint8_t msgType, char *msg, int le
         }
 
         int tile_size = 10;          // hardcoding warning - tile size = 10
-        int n_tiles = (len-1)/tile_size;   
+        int n_tiles = (len - 1)/tile_size;   
         if(n_tiles>9)
         {
             Serial.print(n_tiles);
@@ -124,12 +205,17 @@ void SCHC_Message::printMsg(uint8_t protocol, uint8_t msgType, char *msg, int le
             Serial.print(" ");
             Serial.print(n_tiles);
             Serial.print(" tiles sent");
-        }      
+        }
+        Serial.println();      
     }
     else if(msgType==SCHC_ACK_REQ_MSG)
     {
-        uint8_t w = (msg[0] & 0xC0) >> 6;
-        uint8_t fcn = (msg[0] & 0x3F);
+        uint8_t schc_header = msg[0];
+        uint8_t w_mask      = 0xC0;
+        uint8_t fcn_mask    = 0x3F;
+        uint8_t w           = (w_mask & schc_header) >> 6;
+        uint8_t fcn         = fcn_mask & schc_header;
+
         Serial.print("|-----W=");
         Serial.print(w);
         Serial.print(", FCN=");
@@ -145,8 +231,12 @@ void SCHC_Message::printMsg(uint8_t protocol, uint8_t msgType, char *msg, int le
     }
     else if(msgType==SCHC_SENDER_ABORT_MSG)
     {
-        uint8_t w = (msg[0] & 0xC0) >> 6;
-        uint8_t fcn = (msg[0] & 0x3F);
+        uint8_t schc_header = msg[0];
+        uint8_t w_mask      = 0xC0;
+        uint8_t fcn_mask    = 0x3F;
+        uint8_t w           = (w_mask & schc_header) >> 6;
+        uint8_t fcn         = fcn_mask & schc_header;
+
         Serial.print("|-----W=");
         Serial.print(w);
         Serial.print(", FCN=");
@@ -159,6 +249,58 @@ void SCHC_Message::printMsg(uint8_t protocol, uint8_t msgType, char *msg, int le
         {
             Serial.println(" ----->| ");
         }
+    }
+    else if(msgType==SCHC_ACK_MSG)
+    {
+        uint8_t schc_header = msg[0];
+        // Mask definition
+        uint8_t w_mask = 0xC0;
+        uint8_t c_mask = 0x20;
+        uint8_t c = (c_mask & schc_header) >> 5;
+        uint8_t w = (w_mask & schc_header) >> 6;
+
+        Serial.print("|<----W=");
+        Serial.print(w);
+        Serial.print(", C=");
+        Serial.print(c);
+        Serial.print("---------| Bitmap: ");
+        for(int i=0; i<63; i++)
+        {
+            Serial.print(static_cast<uint8_t>(_bitmap[i]));
+        }
+        Serial.println();
+    }
+    else if(msgType==SCHC_ALL1_FRAGMENT_MSG)
+    {
+        uint8_t schc_header = msg[0];
+        uint8_t w_mask      = 0xC0;
+        uint8_t fcn_mask    = 0x3F;
+        uint8_t w           = (w_mask & schc_header) >> 6;
+        uint8_t fcn         = fcn_mask;
+
+        Serial.print("|-----W=");
+        Serial.print(w);
+        Serial.print(", FCN=");
+        Serial.print(fcn);
+        if(fcn>9)
+        {
+            Serial.print("+RCS->| last tile: ");
+            Serial.print((len-5)*8);
+            Serial.println(" bits");
+
+        }
+        else
+        {
+            Serial.print(" +RCS->| last tile: ");
+            Serial.print((len-5)*8);
+            Serial.println(" bits");
+
+        }
+
+    }
+    else if(msgType==SCHC_RECEIVER_ABORT_MSG)
+    {
+        Serial.print("|<--SCHC Recv-Abort ---|");
     }
 }
 
@@ -204,4 +346,20 @@ void SCHC_Message::printBin(uint8_t val)
         Serial.print(val,BIN);
     }
     
+}
+
+uint8_t SCHC_Message::get_w()
+{
+    return _w;
+}
+
+void SCHC_Message::get_bitmap(char *bitmap)
+{
+
+    return;
+}
+
+uint8_t SCHC_Message::get_c()
+{
+    return _c;
 }
