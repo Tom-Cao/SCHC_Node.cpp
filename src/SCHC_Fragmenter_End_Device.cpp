@@ -28,13 +28,11 @@ uint8_t SCHC_Fragmenter_End_Device::initialize(uint8_t protocol)
 #endif 
         for(uint8_t i=0; i<_SESSION_POOL_SIZE; i++)
         {
-            _uplinkSessionPool[i] = new SCHC_Session_End_Device();
-            _downlinkSessionPool[i] = new SCHC_Session_End_Device();
-            _uplinkSessionPool[i]->initialize(SCHC_FRAG_LORAWAN,
+            _uplinkSessionPool[i].initialize(SCHC_FRAG_LORAWAN,
                                             SCHC_FRAG_UP,
                                             i,
                                             _stack);
-            _downlinkSessionPool[i]->initialize(SCHC_FRAG_LORAWAN,
+            _downlinkSessionPool[i].initialize(SCHC_FRAG_LORAWAN,
                                             SCHC_FRAG_DOWN,
                                             i,
                                             _stack);
@@ -52,7 +50,7 @@ uint8_t SCHC_Fragmenter_End_Device::initialize(uint8_t protocol)
     return 0;
 }
 
-uint8_t SCHC_Fragmenter_End_Device::send(char *buffer, int len)
+uint8_t SCHC_Fragmenter_End_Device::send(char* buffer, int len)
 {
 #ifdef MYTRACE
     Serial.println("SCHC_Fragmenter_End_Device::send - Entering the function");
@@ -61,10 +59,10 @@ uint8_t SCHC_Fragmenter_End_Device::send(char *buffer, int len)
     int id = get_free_session_id(SCHC_FRAG_UP);
     if(id != -1)
     {
-        SCHC_Session_End_Device* us = _uplinkSessionPool[id];
+        SCHC_Session_End_Device us = _uplinkSessionPool[id];
         this->associate_session_id(SCHC_FRAG_UPDIR_RULE_ID, id);
-        us->startFragmentation(buffer, len);
-        us->setIsUsed(false);
+        us.startFragmentation(buffer, len);
+        us.setIsUsed(false);
     }
 
 #ifdef MYTRACE
@@ -92,7 +90,7 @@ uint8_t SCHC_Fragmenter_End_Device::process_received_message(char* buffer, int l
 #endif
         if(fport == SCHC_FRAG_UPDIR_RULE_ID)
         {
-            _uplinkSessionPool[id]->process_message(buffer, len);
+            _uplinkSessionPool[id].process_message(buffer, len);
         }
     }
 
@@ -112,7 +110,7 @@ int SCHC_Fragmenter_End_Device::get_free_session_id(uint8_t direction)
     {
         for(uint8_t i=0; i<_SESSION_POOL_SIZE;i++)
         {
-            if(!_uplinkSessionPool[i]->getIsUsed())
+            if(!_uplinkSessionPool[i].getIsUsed())
             {
 #ifdef MYTRACE
     Serial.println("SCHC_Fragmenter_End_Device::getSessionId - Leaving the function");

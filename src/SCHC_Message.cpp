@@ -109,17 +109,17 @@ uint8_t SCHC_Message::get_msg_type(uint8_t protocol, int rule_id, char *msg, int
     return _msg_type;
 }
 
-uint8_t SCHC_Message::decodeMsg(uint8_t protocol, int rule_id, char *msg, int len)
+uint8_t SCHC_Message::decodeMsg(uint8_t protocol, int rule_id, char *msg, int len, uint8_t** bitmapArray)
 {
     if(protocol==SCHC_FRAG_LORAWAN && rule_id == SCHC_FRAG_UPDIR_RULE_ID)
     {
         uint8_t schc_header = msg[0];
+        _c = (schc_header >> 5) & 0x01;
+        _w = (schc_header >> 6) & 0x03;
 
-        // Mask definition
-        uint8_t w_mask = 0xC0;
-        uint8_t c_mask = 0x20;
-        _c = (c_mask & schc_header) >> 5;
-        _w = (w_mask & schc_header) >> 6;
+        //char temp[80];
+        //sprintf(temp, "msg[0]: %x,_c: %d, _w: %d, len: %d",msg[0], _c,_w, len);
+        //Serial.println(temp);
 
         if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==1 && len==2 && msg[1] == 0xFF)
         {
@@ -128,23 +128,23 @@ uint8_t SCHC_Message::decodeMsg(uint8_t protocol, int rule_id, char *msg, int le
         else if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==1)
         {
             // TODO: Se ha recibido un SCHC ACK (sin errores)
-            _bitmap = new char[63];
+            //Serial.println("SCHC_Message::decodeMsg - Receiving a SCHC ACK without errors");
             for(int i=0; i<63; i++)
             {
-                _bitmap[i] = 1;
+                bitmapArray[_w][i] = 1;
             }
         }
         else if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==0)
         {
             // TODO: Se ha recibido un SCHC ACK (con errores)
-            int compress_bitmap_len = (len-1)*8 + 5;
+            //Serial.println("SCHC_Message::decodeMsg - Receiving a SCHC ACK with errors");
+            int compress_bitmap_len = (len-1)*8 + 5;    // en bits
             char compress_bitmap[compress_bitmap_len];
-            _bitmap = new char[63];
 
             int k = 0;
             for(int i=4; i>=0; i--)
             {
-                compress_bitmap[k] = static_cast<uint8_t>((msg[0] >> i) & 0x01);
+                compress_bitmap[k] = (msg[0] >> i) & 0x01;
                 k++;
             }
 
@@ -152,25 +152,37 @@ uint8_t SCHC_Message::decodeMsg(uint8_t protocol, int rule_id, char *msg, int le
             {
                 for(int j=7; j>=0; j--)
                 {
-                    compress_bitmap[k] = static_cast<uint8_t>((msg[i] >> j) & 0x01);
+                    compress_bitmap[k] = (msg[i] >> j) & 0x01;
                     k++;
                 }
             }
 
-            memcpy(_bitmap, compress_bitmap, compress_bitmap_len);
-            for(int i=compress_bitmap_len; i<63; i++)
+            if(compress_bitmap_len >= 63)
             {
-                _bitmap[i] = 1;
+                for(int i=0; i<63; i++)
+                {
+                    bitmapArray[_w][i] = compress_bitmap[i];
+                }
             }
+            else
+            {
+                for(int i=0; i<compress_bitmap_len; i++)
+                {
+                    bitmapArray[_w][i] = compress_bitmap[i];
+                }
 
-        }
-        
+                for(int i=compress_bitmap_len; i<63; i++)
+                {
+                    bitmapArray[_w][i] = 1;
+                }
+            }
+        }  
     }
 
     return 0;
 }
 
-void SCHC_Message::print_msg(uint8_t msgType, char *msg, int len)
+void SCHC_Message::print_msg(uint8_t msgType, char *msg, int len, uint8_t** bitmapArray)
 {
     if(msgType==SCHC_REGULAR_FRAGMENT_MSG)
     {
@@ -266,7 +278,7 @@ void SCHC_Message::print_msg(uint8_t msgType, char *msg, int len)
         Serial.print("---------| Bitmap: ");
         for(int i=0; i<63; i++)
         {
-            Serial.print(static_cast<uint8_t>(_bitmap[i]));
+            Serial.print(bitmapArray[w][i]);
         }
         Serial.println();
     }
@@ -351,12 +363,6 @@ void SCHC_Message::printBin(uint8_t val)
 uint8_t SCHC_Message::get_w()
 {
     return _w;
-}
-
-void SCHC_Message::get_bitmap(char *bitmap)
-{
-
-    return;
 }
 
 uint8_t SCHC_Message::get_c()

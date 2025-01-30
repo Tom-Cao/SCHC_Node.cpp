@@ -6,7 +6,7 @@
 #include "SCHC_State_Machine.hpp"
 #include "SCHC_Stack_L2.hpp"
 #include <Arduino.h>
-#include <FreeRTOS.h>
+#include <vector>
 
 
 class SCHC_Session_End_Device

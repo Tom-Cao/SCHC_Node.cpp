@@ -25,7 +25,7 @@ uint8_t SCHC_Session_End_Device::initialize(uint8_t protocol, uint8_t direction,
         _windowSize = 63;                       // tiles in a SCHC window
         _t = 0;                                 // bits of the DTag field
         _maxAckReq = 8;                         // max number of ACK Request msg
-        _retransTimer = 10;                     // Retransmission timer in seconds
+        _retransTimer = 5;                      // Retransmission timer in seconds
         _inactivityTimer = 12*60*60;            // Inactivity timer in seconds
         _maxMsgSize = _tileSize*_windowSize*4;  // Maximum size of a SCHC packet in bytes
         _stack = stack_ptr;                     // Pointer to L2 stack
@@ -90,7 +90,8 @@ uint8_t SCHC_Session_End_Device::startFragmentation(char *buffer, int len)
     }
 
     /* Arrancando maquina de estado con el primer mensaje */
-    _stateMachine->execute(buffer, len);
+    SCHC_Ack_on_error* machine = static_cast<SCHC_Ack_on_error*>(_stateMachine);
+    machine->start(buffer, len);
 
 #ifdef MYTRACE
     Serial.println("SCHC_Session_End_Device::startFragmentation - Leaving the function");
@@ -113,7 +114,8 @@ void SCHC_Session_End_Device::process_message(char* msg, int len)
 #ifdef MYTRACE
     Serial.println("SCHC_Session_End_Device::process_message - Entering the function");
 #endif
-    _stateMachine->queue_message(msg, len);
+    SCHC_Ack_on_error* machine = static_cast<SCHC_Ack_on_error*>(_stateMachine);
+    machine->enqueue_message(msg, len);
 }
 
 uint8_t SCHC_Session_End_Device::createStateMachine()
@@ -127,7 +129,8 @@ uint8_t SCHC_Session_End_Device::createStateMachine()
         _stateMachine = new SCHC_Ack_on_error();    // liberada en linea 146
 
         /* Inicializando maquina de estado */
-        _stateMachine->init(_ruleID, _dTag, _windowSize, _tileSize, _n, ACK_MODE, _stack, _retransTimer, _maxAckReq);
+        SCHC_Ack_on_error* machine = static_cast<SCHC_Ack_on_error*>(_stateMachine);
+        machine->init(_ruleID, _dTag, _windowSize, _tileSize, _n, ACK_MODE, _stack, _retransTimer, _maxAckReq);
 
 #ifdef MYINFO
         Serial.println("SCHC_Session_End_Device::createStateMachine - State machine successfully created, initiated, and started");

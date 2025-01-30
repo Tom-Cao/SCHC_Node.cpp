@@ -9,7 +9,7 @@
 //#define SERIAL_CONNECTION
 
 
-#define _SESSION_POOL_SIZE 10   // Sessions numbers
+#define _SESSION_POOL_SIZE 3   // Sessions numbers
 
 #define _LORAWAN_BUFFER_SIZE 300         // buffer size (in bytes) for storing the received lorawan message
 
@@ -46,6 +46,6 @@
 #define ACK_MODE_ACK_END_WIN 1
 #define ACK_MODE_ACK_END_SES 2
 #define ACK_MODE_COMPOUND_ACK 3
-#define ACK_MODE  ACK_MODE_ACK_END_SES  
+#define ACK_MODE  ACK_MODE_ACK_END_WIN  
 
 #endif

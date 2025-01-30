@@ -39,7 +39,7 @@ uint8_t LoRaWAN_RAK4631::initialize_stack(void)
                                             };
 
     // ************** LoRa and LoRaWAN Params ******************
-    #define LORAWAN_DATERATE            DR_5					/* LoRaWAN datarates definition, from DR_0 to DR_5*/
+    #define LORAWAN_DATERATE            DR_0					/* LoRaWAN datarates definition, from DR_0 to DR_5*/
     #define LORAWAN_TX_POWER            TX_POWER_5				/* LoRaWAN tx power definition, from TX_POWER_0 to TX_POWER_15*/
     #define JOINREQ_NBTRIALS            3						/* *< Number of trials for the join request. */
     _doOTAA                             = true;                 /* OTAA is used by default. */
@@ -165,23 +165,6 @@ uint8_t LoRaWAN_RAK4631::send_frame(uint8_t ruleID, char* msg, int len)
     Serial.println("LoRaWAN_RAK4631::send_frame - Entering the function");
 #endif
 
-    // Serial.print("LoRaWAN_RAK4631::send_frame - len sent: ");
-    // Serial.println(len);
-    // Serial.print("Buffer en hexadecimal:");
-    
-    // for (size_t i = 0; i < len; ++i) {
-    //     // Imprimir cada byte del buffer en hexadecimal
-    //     Serial.print("0x");
-    //     if ((uint8_t)msg[i] < 0x10) {
-    //         // Agregar un cero inicial si el valor es menor a 0x10 (para alinear la salida)
-    //         Serial.print("0");
-    //     }
-    //     Serial.print((uint8_t)msg[i], HEX); // Imprime el valor en hexadecimal
-    //     Serial.print(" "); // Separador entre valores
-    // }
-    // Serial.println(); // Nueva línea al final
-
-
     // ************** Private definitions **************
     uint8_t m_lora_app_data_buffer[len];			  ///< Lora user application data buffer.
     lmh_app_data_t m_lora_app_data = {m_lora_app_data_buffer, 0, 0, 0, 0}; ///< Lora user application data structure.
@@ -277,9 +260,15 @@ void LoRaWAN_RAK4631::lorawan_join_failed_handler(void)
 
 void LoRaWAN_RAK4631::lorawan_rx_handler(lmh_app_data_t *app_data)
 {
-    char buff[app_data->buffsize];
+#ifdef MYTRACE
+    Serial.println("LoRaWAN_RAK4631::lorawan_rx_handler - Entering function");
+#endif    
+    char* buff = new char[app_data->buffsize];
     memcpy(buff, app_data->buffer, app_data->buffsize);
     _frag->process_received_message(buff, app_data->buffsize, app_data->port);
+#ifdef MYTRACE
+        Serial.println("LoRaWAN_RAK4631::lorawan_rx_handler - Leaving function");
+#endif
 }
 
 void LoRaWAN_RAK4631::lorawan_confirm_class_handler(DeviceClass_t Class)

@@ -4,6 +4,7 @@
 #include <LoRaWan-RAK4630.h>
 #include "SCHC_Stack_L2.hpp"
 #include "SCHC_Macros.hpp"
+#include <vector>
 
 class SCHC_Fragmenter_End_Device;
 
@@ -27,6 +28,9 @@ class LoRaWAN_RAK4631: public SCHC_Stack_L2
         lmh_param_t g_lora_param_init;
         uint8_t* m_lora_app_data_buffer;
         lmh_app_data_t m_lora_app_data;
+
+        std::vector<int>    _not_send_list = {2, 3};
+        int                 _not_send_countr = 1;
 };
 
 

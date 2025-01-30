@@ -13,12 +13,11 @@ class SCHC_Message
         int         create_sender_abort(uint8_t ruleID, uint8_t dtag, uint8_t w, char *buffer);
         int         create_all_1_fragment(uint8_t ruleID, uint8_t dtag, uint8_t w, uint32_t rcs, char *payload, int payload_len, char *buffer);
         uint8_t     get_msg_type(uint8_t protocol, int rule_id, char *msg, int len);
-        uint8_t     decodeMsg(uint8_t protocol, int rule_id, char *msg, int len);
-        void        print_msg(uint8_t msgType, char *msg, int len);
+        uint8_t     decodeMsg(uint8_t protocol, int rule_id, char *msg, int len, uint8_t** bitmapArray = nullptr);
+        void        print_msg(uint8_t msgType, char *msg, int len, uint8_t** bitmapArray = nullptr);
         void        printBin(uint8_t val);
         uint8_t     get_c();
         uint8_t     get_w();
-        void        get_bitmap(char* bitmap);
     private:
         uint8_t     _msg_type;
         uint8_t     _w;
