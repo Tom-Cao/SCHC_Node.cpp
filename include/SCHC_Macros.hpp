@@ -3,8 +3,8 @@
 
 /* DEBUG Level */
 // uncomment the line of the log level you want to activate
-//#define MYTRACE
-//#define MYDEBUG
+#define MYTRACE
+#define MYDEBUG
 #define MYINFO
 //#define SERIAL_CONNECTION
 

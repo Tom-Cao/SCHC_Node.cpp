@@ -390,9 +390,6 @@ uint8_t SCHC_Ack_on_error::TX_SEND_send_fragments()
 
             /* Se envía un SCHC ACK REQ para empujar el envio en el downlink
             del SCHC ACK enviado por el SCHC Gateway */
-
-            //vTaskDelay(pdMS_TO_TICKS(1000)); // Pausar por 1000 ms
-
             SCHC_Message encoder_2;
             char* schc_ack_req_msg      = new char[1];      // liberado en linea 308
             int schc_ack_req_msg_len    = encoder_2.create_ack_request(_ruleID, _dTag, _currentWindow, schc_ack_req_msg);
@@ -531,8 +528,6 @@ uint8_t SCHC_Ack_on_error::TX_SEND_send_fragments()
 
             /* Se envía un SCHC ACK REQ para empujar el envio en el downlink
             del SCHC ACK enviado por el SCHC Gateway */
-            //vTaskDelay(pdMS_TO_TICKS(1000)); // Pausar por 1000 ms
-
             SCHC_Message encoder_2;
             char* schc_ack_req_msg      = new char[1];      // liberado en linea 308
             int schc_ack_req_msg_len    = encoder_2.create_ack_request(_ruleID, _dTag, _currentWindow, schc_ack_req_msg);
@@ -777,8 +772,6 @@ uint8_t SCHC_Ack_on_error::TX_RESEND_MISSING_FRAG_send_fragments()
     {
         /* Se envía un SCHC ACK REQ para empujar el envio en el downlink
         del SCHC ACK enviado por el SCHC Gateway */
-        //vTaskDelay(pdMS_TO_TICKS(100)); // Pausar por 1000 ms
-
         SCHC_Message encoder_2;
         char* schc_ack_req_msg      = new char[1];      // liberado en linea 308
         int schc_ack_req_msg_len    = encoder_2.create_ack_request(_ruleID, 0, _currentWindow, schc_ack_req_msg);
@@ -786,7 +779,8 @@ uint8_t SCHC_Ack_on_error::TX_RESEND_MISSING_FRAG_send_fragments()
         /* Imprime los mensajes para visualizacion ordenada */
         encoder_2.print_msg(SCHC_ACK_REQ_MSG, schc_ack_req_msg, schc_ack_req_msg_len);
 
-        _currentState       = STATE_TX_WAIT_x_ACK;
+        _waiting_ack    = true;
+        _currentState   = STATE_TX_WAIT_x_ACK;
 #ifdef MYDEBUG
         Serial.println("Changing STATE: From STATE_TX_RESEND_MISSING_FRAG --> STATE_TX_WAIT_x_ACK");
 #endif
@@ -1056,6 +1050,8 @@ void SCHC_Ack_on_error::send_ack_req()
         return;
     }
 
+    _finish_loop_ack    = true;
+    _waiting_ack        = true;
     _retransTimer_counter++;
     
 
