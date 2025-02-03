@@ -62,14 +62,16 @@ class SCHC_Ack_on_error: public SCHC_State_Machine
         uint8_t     _currentFcn;
         int         _currentBitmap_ptr;
         int         _currentTile_ptr;
+        uint8_t     _last_confirmed_window;
         
         /* Static LoRaWAN parameters*/
         int             _current_L2_MTU;
         SCHC_Stack_L2*  _stack;
 
-        //QueueHandle_t   _queue;   
+        /* Flags */  
         bool            _running;
-        bool            _waiting_ack;
+        bool            _retrans_ack_req_flag;
+        bool            _send_schc_ack_req_flag;
 };
 
 #endif

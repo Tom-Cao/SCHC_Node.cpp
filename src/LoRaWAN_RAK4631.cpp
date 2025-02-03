@@ -39,7 +39,7 @@ uint8_t LoRaWAN_RAK4631::initialize_stack(void)
                                             };
 
     // ************** LoRa and LoRaWAN Params ******************
-    #define LORAWAN_DATERATE            DR_0					/* LoRaWAN datarates definition, from DR_0 to DR_5*/
+    #define LORAWAN_DATERATE            DR_3					/* LoRaWAN datarates definition, from DR_0 to DR_5*/
     #define LORAWAN_TX_POWER            TX_POWER_5				/* LoRaWAN tx power definition, from TX_POWER_0 to TX_POWER_15*/
     #define JOINREQ_NBTRIALS            3						/* *< Number of trials for the join request. */
     _doOTAA                             = true;                 /* OTAA is used by default. */

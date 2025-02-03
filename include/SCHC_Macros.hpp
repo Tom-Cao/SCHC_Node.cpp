@@ -3,7 +3,7 @@
 
 /* DEBUG Level */
 // uncomment the line of the log level you want to activate
-#define MYTRACE
+//#define MYTRACE
 #define MYDEBUG
 #define MYINFO
 //#define SERIAL_CONNECTION
@@ -46,6 +46,6 @@
 #define ACK_MODE_ACK_END_WIN 1
 #define ACK_MODE_ACK_END_SES 2
 #define ACK_MODE_COMPOUND_ACK 3
-#define ACK_MODE  ACK_MODE_ACK_END_WIN  
+#define ACK_MODE  ACK_MODE_ACK_END_SES  
 
 #endif
