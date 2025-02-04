@@ -141,13 +141,13 @@ uint8_t SCHC_Message::decodeMsg(uint8_t protocol, int rule_id, char *msg, int le
             // * Se ha recibido un SCHC Compound ACK (con errores)
             //Serial.println("SCHC_Message::decodeMsg - Receiving a SCHC ACK with errors");
             int n_total_bits    = len*8;                    // en bits
-            int n_win           = ceil((len*8 - 1)/65);     // window_size + M = 65. Se resta un bit a len debido al bit C.
+            int n_win           = ceil((n_total_bits - 1)/65);     // window_size + M = 65. Se resta un bit a len debido al bit C.
             //int n_padding_bits  = n_total_bits - 1 - n_win*65;
             bool first_win      = true;
 
             std::vector<uint8_t> bitVector;
             
-            for (size_t i = 0; i < len; ++i)
+            for (int i = 0; i < len; ++i)
             {
                 for (int j = 7; j >= 0; --j)
                 {
@@ -371,7 +371,7 @@ void SCHC_Message::print_msg(uint8_t msgType, char *msg, int len, uint8_t** bitm
         Serial.print(c);
         Serial.print(" ----|");
 
-        for(int i=0; i<_windows_with_error.size(); i++)
+        for(uint8_t i=0; i<_windows_with_error.size(); i++)
         {
             uint8_t win = _windows_with_error[i];
             Serial.print(", W=");

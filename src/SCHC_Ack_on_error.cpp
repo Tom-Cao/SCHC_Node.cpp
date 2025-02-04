@@ -333,8 +333,6 @@ uint8_t SCHC_Ack_on_error::TX_SEND_send_fragments()
         if(_currentWindow == (_nWindows - 1))
         {
             n_remaining_tiles = _nFullTiles - _currentTile_ptr;
-            Serial.print("SCHC_Ack_on_error::TX_SEND_send_fragment - n_remaining_tiles (1): ");
-            Serial.println(n_remaining_tiles);
         }     
         else
         {
