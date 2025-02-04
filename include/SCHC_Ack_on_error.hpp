@@ -55,6 +55,7 @@ class SCHC_Ack_on_error: public SCHC_State_Machine
         int             _loop_counter;
         bool            _all_tiles_sent;
         bool            _all_window_tiles_sent;
+        std::vector<uint8_t>    _win_with_errors;
 
         /* Dynamic SCHC parameters */
         uint8_t     _currentState;

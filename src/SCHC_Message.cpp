@@ -102,6 +102,8 @@ uint8_t SCHC_Message::get_msg_type(uint8_t protocol, int rule_id, char *msg, int
             _msg_type = SCHC_RECEIVER_ABORT_MSG;
         else if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==1)
             _msg_type = SCHC_ACK_MSG;
+        else if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==0 && len>9)
+            _msg_type = SCHC_COMPOUND_ACK;
         else if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==0)
             _msg_type = SCHC_ACK_MSG;
     }
@@ -134,9 +136,52 @@ uint8_t SCHC_Message::decodeMsg(uint8_t protocol, int rule_id, char *msg, int le
                 bitmapArray[_w][i] = 1;
             }
         }
+        else if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==0 && len>9)
+        {
+            // * Se ha recibido un SCHC Compound ACK (con errores)
+            //Serial.println("SCHC_Message::decodeMsg - Receiving a SCHC ACK with errors");
+            int n_total_bits    = len*8;                    // en bits
+            int n_win           = ceil((len*8 - 1)/65);     // window_size + M = 65. Se resta un bit a len debido al bit C.
+            //int n_padding_bits  = n_total_bits - 1 - n_win*65;
+            bool first_win      = true;
+
+            std::vector<uint8_t> bitVector;
+            
+            for (size_t i = 0; i < len; ++i)
+            {
+                for (int j = 7; j >= 0; --j)
+                {
+                    bitVector.push_back((msg[i] >> j) & 1);
+                }
+            }
+
+            for(int i=0; i<n_win; i++)
+            {
+                if(first_win)
+                {
+                    _windows_with_error.push_back(_w);      // almacena en el vector el numero de la primera ventana con error en el SCHC Compound ACK
+                    
+                    bitVector.erase(bitVector.begin(), bitVector.begin()+3); // Se elimina del vector la ventana (2 bits) y c (1 bit)
+                    std::copy(bitVector.begin(), bitVector.begin() + 63, bitmapArray[_w]);
+                    bitVector.erase(bitVector.begin(), bitVector.begin()+63);
+                    first_win = false;
+                }
+                else
+                {
+                    uint8_t win = (bitVector[0] << 1) | bitVector[1];
+                    _windows_with_error.push_back(win);
+                    bitVector.erase(bitVector.begin(), bitVector.begin()+2);
+                    std::copy(bitVector.begin(), bitVector.begin() + 63, bitmapArray[win]);
+                    bitVector.erase(bitVector.begin(), bitVector.begin()+63);
+                }
+            }
+
+
+
+        }
         else if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==0)
         {
-            // TODO: Se ha recibido un SCHC ACK (con errores)
+            // * Se ha recibido un SCHC ACK (con errores)
             //Serial.println("SCHC_Message::decodeMsg - Receiving a SCHC ACK with errors");
             int compress_bitmap_len = (len-1)*8 + 5;    // en bits
             char compress_bitmap[compress_bitmap_len];
@@ -176,7 +221,8 @@ uint8_t SCHC_Message::decodeMsg(uint8_t protocol, int rule_id, char *msg, int le
                     bitmapArray[_w][i] = 1;
                 }
             }
-        }  
+        }
+          
     }
 
     return 0;
@@ -314,6 +360,31 @@ void SCHC_Message::print_msg(uint8_t msgType, char *msg, int len, uint8_t** bitm
     {
         Serial.print("|<--SCHC Recv-Abort ---|");
     }
+    else if(msgType==SCHC_COMPOUND_ACK)
+    {
+        uint8_t schc_header = msg[0];
+        // Mask definition
+        uint8_t c_mask = 0x20;
+        uint8_t c = (c_mask & schc_header) >> 5;
+
+        Serial.print("|<-- ACK, C=");
+        Serial.print(c);
+        Serial.print(" ----|");
+
+        for(int i=0; i<_windows_with_error.size(); i++)
+        {
+            uint8_t win = _windows_with_error[i];
+            Serial.print(", W=");
+            Serial.print(win);
+            Serial.print(" - Bitmap:");
+            for(int i=0; i<63; i++)
+            {
+                Serial.print(bitmapArray[win][i]);
+            }
+        }
+        Serial.println();
+    }
+
 }
 
 void SCHC_Message::printBin(uint8_t val)
@@ -363,6 +434,11 @@ void SCHC_Message::printBin(uint8_t val)
 uint8_t SCHC_Message::get_w()
 {
     return _w;
+}
+
+std::vector<uint8_t> SCHC_Message::get_w_vector()
+{
+    return _windows_with_error;
 }
 
 uint8_t SCHC_Message::get_c()
