@@ -119,18 +119,13 @@ uint8_t SCHC_Message::decodeMsg(uint8_t protocol, int rule_id, char *msg, int le
         _c = (schc_header >> 5) & 0x01;
         _w = (schc_header >> 6) & 0x03;
 
-        //char temp[80];
-        //sprintf(temp, "msg[0]: %x,_c: %d, _w: %d, len: %d",msg[0], _c,_w, len);
-        //Serial.println(temp);
-
         if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==1 && len==2 && msg[1] == 0xFF)
         {
             // TODO: Se ha recibido un SCHC Receiver-Abort. No hacer nada.
         }
         else if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==1)
         {
-            // TODO: Se ha recibido un SCHC ACK (sin errores)
-            //Serial.println("SCHC_Message::decodeMsg - Receiving a SCHC ACK without errors");
+            // * Se ha recibido un SCHC ACK (sin errores)
             for(int i=0; i<63; i++)
             {
                 bitmapArray[_w][i] = 1;
@@ -317,16 +312,29 @@ void SCHC_Message::print_msg(uint8_t msgType, char *msg, int len, uint8_t** bitm
         uint8_t c = (c_mask & schc_header) >> 5;
         uint8_t w = (w_mask & schc_header) >> 6;
 
-        Serial.print("|<----W=");
-        Serial.print(w);
-        Serial.print(", C=");
-        Serial.print(c);
-        Serial.print(" --------| Bitmap: ");
-        for(int i=0; i<63; i++)
+        if(c == 1)
         {
-            Serial.print(bitmapArray[w][i]);
+            Serial.print("|<----W=");
+            Serial.print(w);
+            Serial.print(", C=");
+            Serial.print(c);
+            Serial.print(" --------| C=1");
+            Serial.println();
         }
-        Serial.println();
+        else
+        {
+            Serial.print("|<----W=");
+            Serial.print(w);
+            Serial.print(", C=");
+            Serial.print(c);
+            Serial.print(" --------| Bitmap: ");
+            for(int i=0; i<63; i++)
+            {
+                Serial.print(bitmapArray[w][i]);
+            }
+            Serial.println();
+        }
+
     }
     else if(msgType==SCHC_ALL1_FRAGMENT_MSG)
     {
