@@ -321,7 +321,7 @@ void SCHC_Message::print_msg(uint8_t msgType, char *msg, int len, uint8_t** bitm
         Serial.print(w);
         Serial.print(", C=");
         Serial.print(c);
-        Serial.print("---------| Bitmap: ");
+        Serial.print(" --------| Bitmap: ");
         for(int i=0; i<63; i++)
         {
             Serial.print(bitmapArray[w][i]);
@@ -383,6 +383,22 @@ void SCHC_Message::print_msg(uint8_t msgType, char *msg, int len, uint8_t** bitm
             }
         }
         Serial.println();
+    }
+    else if(msgType==SCHC_ACK_RESIDUAL_MSG)
+    {
+        uint8_t schc_header = msg[0];
+        // Mask definition
+        uint8_t w_mask = 0xC0;
+        uint8_t c_mask = 0x20;
+        uint8_t c = (c_mask & schc_header) >> 5;
+        uint8_t w = (w_mask & schc_header) >> 6;
+
+        Serial.print("|<----W=");
+        Serial.print(w);
+        Serial.print(", C=");
+        Serial.print(c);
+        Serial.print(" --------| Residual ACK, dropped");
+        Serial.println();        
     }
 
 }

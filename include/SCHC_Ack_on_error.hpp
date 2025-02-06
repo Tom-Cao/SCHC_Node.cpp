@@ -27,7 +27,7 @@ class SCHC_Ack_on_error: public SCHC_State_Machine
         uint8_t     TX_SEND_send_fragments();
         uint8_t     TX_WAIT_x_ACK_receive_ack(char *msg, int len);
         uint8_t     TX_END_free_resources();
-        uint8_t     TX_RESEND_MISSING_FRAG_send_fragments();
+        uint8_t     TX_RESEND_MISSING_FRAG_send_fragments(char *msg=nullptr, int len=0);
         uint8_t     mtuUpgrade(int mtu);
         uint8_t     divideInTiles(char *buffer, int len);
         uint8_t     extractTiles(uint8_t firstTileID, uint8_t nTiles, char *buff);
