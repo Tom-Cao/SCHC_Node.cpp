@@ -94,9 +94,7 @@ uint8_t SCHC_Message::get_msg_type(uint8_t protocol, int rule_id, char *msg, int
     if(protocol==SCHC_FRAG_LORAWAN)
     {
         uint8_t schc_header = msg[0];
-        uint8_t c_mask = 0x20;                // Mask definition
-        uint8_t _c = (c_mask & schc_header) >> 5;
-        //uint8_t _dtag = 0;                      // In LoRaWAN, dtag is not used
+        uint8_t _c = (schc_header >> 5) & 0x01;
 
         if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==1 && len==2)
             _msg_type = SCHC_RECEIVER_ABORT_MSG;
@@ -104,7 +102,7 @@ uint8_t SCHC_Message::get_msg_type(uint8_t protocol, int rule_id, char *msg, int
             _msg_type = SCHC_ACK_MSG;
         else if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==0 && len>9)
             _msg_type = SCHC_COMPOUND_ACK;
-        else if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==0)
+        else if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==0)     
             _msg_type = SCHC_ACK_MSG;
     }
 
@@ -134,7 +132,7 @@ uint8_t SCHC_Message::decodeMsg(uint8_t protocol, int rule_id, char *msg, int le
         else if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==0 && len>9)
         {
             // * Se ha recibido un SCHC Compound ACK (con errores)
-            //Serial.println("SCHC_Message::decodeMsg - Receiving a SCHC ACK with errors");
+            //Serial.println("SCHC_Message::decodeMsg - Receiving a SCHC Compound ACK with errors");
             int n_total_bits    = len*8;                    // en bits
             int n_win           = ceil((n_total_bits - 1)/65);     // window_size + M = 65. Se resta un bit a len debido al bit C.
             //int n_padding_bits  = n_total_bits - 1 - n_win*65;
@@ -171,50 +169,94 @@ uint8_t SCHC_Message::decodeMsg(uint8_t protocol, int rule_id, char *msg, int le
                 }
             }
 
-
-
         }
         else if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==0)
         {
-            // * Se ha recibido un SCHC ACK (con errores)
-            //Serial.println("SCHC_Message::decodeMsg - Receiving a SCHC ACK with errors");
-            int compress_bitmap_len = (len-1)*8 + 5;    // en bits
-            char compress_bitmap[compress_bitmap_len];
+            if(_msg_type == ACK_MODE_ACK_END_WIN || _msg_type == ACK_MODE_ACK_END_SES)
+            {    
+                // * Se ha recibido un SCHC ACK (con errores)
+                //Serial.println("SCHC_Message::decodeMsg - Receiving a SCHC ACK with errors");
+                int compress_bitmap_len = (len-1)*8 + 5;    // en bits
+                char compress_bitmap[compress_bitmap_len];
 
-            int k = 0;
-            for(int i=4; i>=0; i--)
-            {
-                compress_bitmap[k] = (msg[0] >> i) & 0x01;
-                k++;
-            }
-
-            for(int i=1; i<len; i++)
-            {
-                for(int j=7; j>=0; j--)
+                int k = 0;
+                for(int i=4; i>=0; i--)
                 {
-                    compress_bitmap[k] = (msg[i] >> j) & 0x01;
+                    compress_bitmap[k] = (msg[0] >> i) & 0x01;
                     k++;
                 }
-            }
 
-            if(compress_bitmap_len >= 63)
-            {
-                for(int i=0; i<63; i++)
+                for(int i=1; i<len; i++)
                 {
-                    bitmapArray[_w][i] = compress_bitmap[i];
-                }
-            }
-            else
-            {
-                for(int i=0; i<compress_bitmap_len; i++)
-                {
-                    bitmapArray[_w][i] = compress_bitmap[i];
+                    for(int j=7; j>=0; j--)
+                    {
+                        compress_bitmap[k] = (msg[i] >> j) & 0x01;
+                        k++;
+                    }
                 }
 
-                for(int i=compress_bitmap_len; i<63; i++)
+                if(compress_bitmap_len >= 63)
                 {
-                    bitmapArray[_w][i] = 1;
+                    for(int i=0; i<63; i++)
+                    {
+                        bitmapArray[_w][i] = compress_bitmap[i];
+                    }
                 }
+                else
+                {
+                    for(int i=0; i<compress_bitmap_len; i++)
+                    {
+                        bitmapArray[_w][i] = compress_bitmap[i];
+                    }
+
+                    for(int i=compress_bitmap_len; i<63; i++)
+                    {
+                        bitmapArray[_w][i] = 1;
+                    }
+                }
+            }
+            else if(_msg_type == ACK_MODE_COMPOUND_ACK)
+            {
+                // * Se ha recibido un SCHC Compound ACK (con errores)
+                //Serial.println("SCHC_Message::decodeMsg - Receiving a SCHC Compound ACK with errors");
+
+                int n_total_bits    = len*8;                        // en bits
+                int n_win           = ceil((n_total_bits - 1)/65);  // window_size + M = 65. Se resta un bit a len debido al bit C.
+                //int n_padding_bits  = n_total_bits - 1 - n_win*65;
+                bool first_win      = true;
+
+                std::vector<uint8_t> bitVector;
+                
+                /* traspasa el mensaje de formato char a vector*/
+                for (int i = 0; i < len; ++i)
+                {
+                    for (int j = 7; j >= 0; --j)
+                    {
+                        bitVector.push_back((msg[i] >> j) & 1);
+                    }
+                }
+
+                for(int i=0; i<n_win; i++)
+                {
+                    if(first_win)
+                    {
+                        _windows_with_error.push_back(_w);      // almacena en el vector el numero de la primera ventana con error en el SCHC Compound ACK
+                        
+                        bitVector.erase(bitVector.begin(), bitVector.begin()+3); // Se elimina del vector la ventana (2 bits) y c (1 bit)
+                        std::copy(bitVector.begin(), bitVector.begin() + 63, bitmapArray[_w]);
+                        bitVector.erase(bitVector.begin(), bitVector.begin()+63);
+                        first_win = false;
+                    }
+                    else
+                    {
+                        uint8_t win = (bitVector[0] << 1) | bitVector[1];
+                        _windows_with_error.push_back(win);
+                        bitVector.erase(bitVector.begin(), bitVector.begin()+2);
+                        std::copy(bitVector.begin(), bitVector.begin() + 63, bitmapArray[win]);
+                        bitVector.erase(bitVector.begin(), bitVector.begin()+63);
+                    }
+                }
+
             }
         }
           
@@ -371,13 +413,12 @@ void SCHC_Message::print_msg(uint8_t msgType, char *msg, int len, uint8_t** bitm
     else if(msgType==SCHC_COMPOUND_ACK)
     {
         uint8_t schc_header = msg[0];
-        // Mask definition
-        uint8_t c_mask = 0x20;
-        uint8_t c = (c_mask & schc_header) >> 5;
+        uint8_t c_mask      = 0x20;
+        uint8_t c           = (c_mask & schc_header) >> 5;
 
-        Serial.print("|<-- ACK, C=");
+        Serial.print("|<--- ACK, C=");
         Serial.print(c);
-        Serial.print(" ----|");
+        Serial.print(" --------|");
 
         for(uint8_t i=0; i<_windows_with_error.size(); i++)
         {

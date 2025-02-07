@@ -700,8 +700,8 @@ uint8_t SCHC_Ack_on_error::TX_WAIT_x_ACK_receive_ack(char *msg, int len)
         else if(_ackMode == ACK_MODE_COMPOUND_ACK)
         {
             decoder.decodeMsg(SCHC_FRAG_LORAWAN, SCHC_FRAG_UPDIR_RULE_ID, msg, len, _bitmapArray);
-            uint8_t c   = decoder.get_c();
-            uint8_t w   = decoder.get_w();
+            uint8_t c = decoder.get_c();
+            uint8_t w = decoder.get_w();
             _win_with_errors.push_back(w);
 
             if(c == 1)
@@ -723,12 +723,14 @@ uint8_t SCHC_Ack_on_error::TX_WAIT_x_ACK_receive_ack(char *msg, int len)
                 Serial.println("Changing STATE: From STATE_TX_WAIT_x_ACK --> STATE_TX_RESEND_MISSING_FRAG");
                 #endif
             }
-
         }
+
+        
+
     }
     else if(msg_type == SCHC_COMPOUND_ACK)
     {
-        #ifdef MYDEBUG
+        #ifdef MYTRACE
         Serial.println("SCHC_Ack_on_error::TX_WAIT_x_ACK_receive_ack - Receiving a SCHC Compound ACK msg");
         #endif
         _retrans_ack_req_flag = false;
@@ -811,20 +813,6 @@ uint8_t SCHC_Ack_on_error::TX_RESEND_MISSING_FRAG_send_fragments(char *msg, int 
 
     if(_ackMode==ACK_MODE_ACK_END_WIN)
     {
-        // if(msg!=nullptr)
-        // {
-        //     SCHC_Message decoder;
-        //     uint8_t msg_type = decoder.get_msg_type(SCHC_FRAG_LORAWAN, SCHC_FRAG_UPDIR_RULE_ID, msg, len);
-
-        //     if(msg_type == SCHC_ACK_MSG)
-        //     {
-        //         decoder.decodeMsg(SCHC_FRAG_LORAWAN, SCHC_FRAG_UPDIR_RULE_ID, msg, len, _bitmapArray);
-        //         decoder.print_msg(SCHC_ACK_RESIDUAL_MSG, msg, len, _bitmapArray);
-        //         return 0;
-        //     }
-        // }
-
-
         /* Se envía un SCHC ACK REQ para empujar 
         el envio en el downlink del SCHC ACK enviado 
         por el SCHC Gateway */
@@ -1149,6 +1137,7 @@ uint8_t SCHC_Ack_on_error::TX_RESEND_MISSING_FRAG_send_fragments(char *msg, int 
     }
     else if(_ackMode==ACK_MODE_COMPOUND_ACK)
     {
+
         /* Extrae la ventana a la que se deben enviar los tails*/
         if(!_win_with_errors.empty())
             _last_confirmed_window = _win_with_errors.front();
@@ -1157,7 +1146,32 @@ uint8_t SCHC_Ack_on_error::TX_RESEND_MISSING_FRAG_send_fragments(char *msg, int 
         el downlink del SCHC ACK enviado por el SCHC Gateway */
         if(_send_schc_ack_req_flag == true)
         {
-            
+
+            if((_last_confirmed_window == _nWindows-1) && _bitmapArray[_currentWindow][_windowSize-1] == 0)
+            {
+                /* Sending a SCHC All-1 fragment */
+                SCHC_Message    encoder_all_1;
+                int payload_len             = _lastTileSize;                    // tamaño del last tile en bytes
+                char* schc_all_1_message    = new char[payload_len + 1 + 4];    // liberado en linea 285. buffer para el SCHC message: header (1B) + rcs (4B) + payload
+                int schc_all_1_message_len  = encoder_all_1.create_all_1_fragment(_ruleID, _dTag, _currentWindow, _rcs, _lastTile, payload_len, schc_all_1_message);
+
+                /* Imprime los mensajes para visualizacion ordenada */
+                encoder_all_1.print_msg(SCHC_ALL1_FRAGMENT_MSG, schc_all_1_message, schc_all_1_message_len); 
+
+                /* Envía el mensaje a la capa 2*/
+                uint8_t res = _stack->send_frame(_ruleID, schc_all_1_message, schc_all_1_message_len);
+                if(res==1)
+                {
+                    Serial.println("SCHC_Ack_on_error::sendRegularFragment - ERROR sending L2 frame");
+                    return 1;
+                }
+
+                /* Eliminar los punteros a buffers*/
+                delete[] schc_all_1_message;                
+            }
+
+
+
             SCHC_Message encoder_2;
             char* schc_ack_req_msg      = new char[1];      // liberado en linea 308
             int schc_ack_req_msg_len    = encoder_2.create_ack_request(_ruleID, 0, _last_confirmed_window, schc_ack_req_msg);
