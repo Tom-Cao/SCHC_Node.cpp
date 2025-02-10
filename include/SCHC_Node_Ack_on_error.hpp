@@ -1,21 +1,21 @@
-#ifndef SCHC_Ack_on_error_hpp
-#define SCHC_Ack_on_error_hpp
+#ifndef SCHC_Node_Ack_on_error_hpp
+#define SCHC_Node_Ack_on_error_hpp
 
-#include "SCHC_Macros.hpp"
-#include "SCHC_State_Machine.hpp"
+#include "SCHC_Node_Macros.hpp"
+#include "SCHC_Node_State_Machine.hpp"
 #include <math.h>
 #include <Arduino.h>
-#include "SCHC_Message.hpp"
+#include "SCHC_Node_Message.hpp"
 #include <vector>
 #include <deque>
 #include "Ticker.h"
 
-class SCHC_Ack_on_error: public SCHC_State_Machine
+class SCHC_Node_Ack_on_error: public SCHC_Node_State_Machine
 {
     public:
-        SCHC_Ack_on_error();
-        ~SCHC_Ack_on_error();
-        uint8_t init(uint8_t ruleID, uint8_t dTag, uint8_t windowSize, uint8_t tileSize, uint8_t n, uint8_t ackMode, SCHC_Stack_L2* stack_ptr, int retTimer, uint8_t ackReqAttempts);
+        SCHC_Node_Ack_on_error();
+        ~SCHC_Node_Ack_on_error();
+        uint8_t init(uint8_t ruleID, uint8_t dTag, uint8_t windowSize, uint8_t tileSize, uint8_t n, uint8_t ackMode, SCHC_Node_Stack_L2* stack_ptr, int retTimer, uint8_t ackReqAttempts);
         uint8_t start(char *msg=nullptr, int len=0);
         uint8_t enqueue_message(char* msg, int len);
         uint8_t execute(char *msg=nullptr, int len=0);
@@ -66,7 +66,7 @@ class SCHC_Ack_on_error: public SCHC_State_Machine
         
         /* Static LoRaWAN parameters*/
         int             _current_L2_MTU;
-        SCHC_Stack_L2*  _stack;
+        SCHC_Node_Stack_L2*  _stack;
 
         /* Flags */  
         bool            _running;

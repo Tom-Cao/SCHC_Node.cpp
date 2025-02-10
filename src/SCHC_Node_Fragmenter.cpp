@@ -1,30 +1,30 @@
-#include "SCHC_Fragmenter_End_Device.hpp"
+#include "SCHC_Node_Fragmenter.hpp"
 
 
-SCHC_Fragmenter_End_Device::SCHC_Fragmenter_End_Device()
+SCHC_Node_Fragmenter::SCHC_Node_Fragmenter()
 {
     
 }
 
-uint8_t SCHC_Fragmenter_End_Device::initialize(uint8_t protocol)
+uint8_t SCHC_Node_Fragmenter::initialize(uint8_t protocol)
 {
 #ifdef MYTRACE
-    Serial.println("SCHC_Fragmenter_End_Device::initialize - Entering the function");
+    Serial.println("SCHC_Node_Fragmenter::initialize - Entering the function");
 #endif
     _protocol = protocol;
     if(protocol==SCHC_FRAG_LORAWAN)
     {
 #ifdef MYINFO
-        Serial.println("SCHC_Fragmenter_End_Device::initialize - Initializing LoRaWAN stack");
+        Serial.println("SCHC_Node_Fragmenter::initialize - Initializing LoRaWAN stack");
 #endif 
-        _stack = new LoRaWAN_RAK4631();
-        LoRaWAN_RAK4631* lora_stack = static_cast<LoRaWAN_RAK4631*>(_stack);
+        _stack = new SCHC_Node_LoRaWAN_RAK4631();
+        SCHC_Node_LoRaWAN_RAK4631* lora_stack = static_cast<SCHC_Node_LoRaWAN_RAK4631*>(_stack);
         lora_stack->initialize_stack();
         lora_stack->set_fragmenter(this);
 
         /* initializing the session pool */
 #ifdef MYINFO
-        Serial.println("SCHC_Fragmenter_End_Device::initialize - Initializing session pool");
+        Serial.println("SCHC_Node_Fragmenter::initialize - Initializing session pool");
 #endif 
         for(uint8_t i=0; i<_SESSION_POOL_SIZE; i++)
         {
@@ -40,41 +40,41 @@ uint8_t SCHC_Fragmenter_End_Device::initialize(uint8_t protocol)
 
         /* initializing the LoRaWAN Stack*/
 #ifdef MYINFO
-        Serial.println("SCHC_Fragmenter_End_Device::initialize - Instantiation and Initializing LoRaWAN Stack");
+        Serial.println("SCHC_Node_Fragmenter::initialize - Instantiation and Initializing LoRaWAN Stack");
 #endif
     }
 
 #ifdef MYTRACE
-    Serial.println("SCHC_Fragmenter_End_Device::initialize - Leaving the function");
+    Serial.println("SCHC_Node_Fragmenter::initialize - Leaving the function");
 #endif
     return 0;
 }
 
-uint8_t SCHC_Fragmenter_End_Device::send(char* buffer, int len)
+uint8_t SCHC_Node_Fragmenter::send(char* buffer, int len)
 {
 #ifdef MYTRACE
-    Serial.println("SCHC_Fragmenter_End_Device::send - Entering the function");
+    Serial.println("SCHC_Node_Fragmenter::send - Entering the function");
 #endif
 
     int id = get_free_session_id(SCHC_FRAG_UP);
     if(id != -1)
     {
-        SCHC_Session_End_Device us = _uplinkSessionPool[id];
+        SCHC_Node_Session us = _uplinkSessionPool[id];
         this->associate_session_id(SCHC_FRAG_UPDIR_RULE_ID, id);
         us.startFragmentation(buffer, len);
         us.setIsUsed(false);
     }
 
 #ifdef MYTRACE
-    Serial.println("SCHC_Fragmenter_End_Device::send - Leaving the function");
+    Serial.println("SCHC_Node_Fragmenter::send - Leaving the function");
 #endif
     return 0;
 }
 
-uint8_t SCHC_Fragmenter_End_Device::process_received_message(char* buffer, int len, int fport)
+uint8_t SCHC_Node_Fragmenter::process_received_message(char* buffer, int len, int fport)
 {
 #ifdef MYTRACE
-    Serial.println("SCHC_Fragmenter_End_Device::listen_message - Entering the function");
+    Serial.println("SCHC_Node_Fragmenter::listen_message - Entering the function");
 #endif
 
     // Valida si existe una sesión asociada al deviceId.
@@ -86,7 +86,7 @@ uint8_t SCHC_Fragmenter_End_Device::process_received_message(char* buffer, int l
     else
     {
 #ifdef MYTRACE
-        Serial.println("SCHC_Fragmenter_End_Device::process_received_message - Obtaining session id");
+        Serial.println("SCHC_Node_Fragmenter::process_received_message - Obtaining session id");
 #endif
         if(fport == SCHC_FRAG_UPDIR_RULE_ID)
         {
@@ -96,15 +96,15 @@ uint8_t SCHC_Fragmenter_End_Device::process_received_message(char* buffer, int l
 
 
 #ifdef MYTRACE
-        Serial.println("SCHC_Fragmenter_End_Device::listen_message - Leaving the function");
+        Serial.println("SCHC_Node_Fragmenter::listen_message - Leaving the function");
 #endif
     return 0;
 }
 
-int SCHC_Fragmenter_End_Device::get_free_session_id(uint8_t direction)
+int SCHC_Node_Fragmenter::get_free_session_id(uint8_t direction)
 {
 #ifdef MYTRACE
-    Serial.println("SCHC_Fragmenter_End_Device::getSessionId - Entering the function");
+    Serial.println("SCHC_Node_Fragmenter::getSessionId - Entering the function");
 #endif
     if(_protocol==SCHC_FRAG_LORAWAN && direction==SCHC_FRAG_UP)
     {
@@ -113,26 +113,26 @@ int SCHC_Fragmenter_End_Device::get_free_session_id(uint8_t direction)
             if(!_uplinkSessionPool[i].getIsUsed())
             {
 #ifdef MYTRACE
-    Serial.println("SCHC_Fragmenter_End_Device::getSessionId - Leaving the function");
+    Serial.println("SCHC_Node_Fragmenter::getSessionId - Leaving the function");
 #endif
                 return i;
             }
         }
-        Serial.println("SCHC_Fragmenter_End_Device::getSessionId - ERROR: all sessiones are used");
+        Serial.println("SCHC_Node_Fragmenter::getSessionId - ERROR: all sessiones are used");
     }
 #ifdef MYTRACE
-    Serial.println("SCHC_Fragmenter_End_Device::getSessionId - Leaving the function");
+    Serial.println("SCHC_Node_Fragmenter::getSessionId - Leaving the function");
 #endif
     return -1;
 }
 
-uint8_t SCHC_Fragmenter_End_Device::associate_session_id(int rule_id, int sessionId)
+uint8_t SCHC_Node_Fragmenter::associate_session_id(int rule_id, int sessionId)
 {
         auto result = _associationMap.insert({rule_id, sessionId});
         if (result.second)
         {
 #ifdef MYTRACE
-                Serial.println("SCHC_Fragmenter_End_Device::associate_session_id - Key and value successfully inserted in the map.");
+                Serial.println("SCHC_Node_Fragmenter::associate_session_id - Key and value successfully inserted in the map.");
 #endif
                 return 0;
         } else
@@ -145,7 +145,7 @@ uint8_t SCHC_Fragmenter_End_Device::associate_session_id(int rule_id, int sessio
     return 0;
 }
 
-uint8_t SCHC_Fragmenter_End_Device::disassociate_session_id(int rule_id)
+uint8_t SCHC_Node_Fragmenter::disassociate_session_id(int rule_id)
 {
         size_t res = _associationMap.erase(rule_id);
         if(res == 0)
@@ -165,13 +165,13 @@ uint8_t SCHC_Fragmenter_End_Device::disassociate_session_id(int rule_id)
         return -1;
 }
 
-int SCHC_Fragmenter_End_Device::get_session_id(int rule_id)
+int SCHC_Node_Fragmenter::get_session_id(int rule_id)
 {
         auto it = _associationMap.find(rule_id);
         if (it != _associationMap.end())
         {
 #ifdef MYTRACE
-                Serial.println("SCHC_Fragmenter_End_Device::get_session_id - Recovering the session id from the map.");
+                Serial.println("SCHC_Node_Fragmenter::get_session_id - Recovering the session id from the map.");
 #endif
                 return it->second;
         }

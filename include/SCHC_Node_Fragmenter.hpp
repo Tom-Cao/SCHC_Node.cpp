@@ -1,17 +1,17 @@
-#ifndef SCHC_Fragmenter_End_Device_hpp
-#define SCHC_Fragmenter_End_Device_hpp
+#ifndef SCHC_Node_Fragmenter_hpp
+#define SCHC_Node_Fragmenter_hpp
 
-#include "SCHC_Macros.hpp"
-#include "SCHC_Session_End_Device.hpp"
-#include "LoRaWAN_RAK4631.hpp"
+#include "SCHC_Node_Macros.hpp"
+#include "SCHC_Node_Session.hpp"
+#include "SCHC_Node_LoRaWAN_RAK4631.hpp"
 #include <Arduino.h>
 #include <unordered_map>
 #include <vector>
 
-class SCHC_Fragmenter_End_Device
+class SCHC_Node_Fragmenter
 {
     public:
-        SCHC_Fragmenter_End_Device();
+        SCHC_Node_Fragmenter();
         uint8_t initialize(uint8_t protocol);
         uint8_t send(char* buffer, int len);
         uint8_t process_received_message(char*  buffer, int len, int fport);
@@ -21,10 +21,10 @@ class SCHC_Fragmenter_End_Device
         uint8_t     disassociate_session_id(int rule_id);
         int         get_session_id(int rule_id);
         uint8_t _protocol;
-        SCHC_Session_End_Device                 _uplinkSessionPool[_SESSION_POOL_SIZE];
-        SCHC_Session_End_Device                 _downlinkSessionPool[_SESSION_POOL_SIZE];
-        SCHC_Stack_L2*                          _stack;
+        SCHC_Node_Session                 _uplinkSessionPool[_SESSION_POOL_SIZE];
+        SCHC_Node_Session                 _downlinkSessionPool[_SESSION_POOL_SIZE];
+        SCHC_Node_Stack_L2*                          _stack;
         std::unordered_map<int, int>            _associationMap;
 };
 
-#endif  // SCHC_Fragmenter_End_Device_hpp
+#endif  // SCHC_Node_Fragmenter_hpp

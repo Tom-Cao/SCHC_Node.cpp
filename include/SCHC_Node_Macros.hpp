@@ -1,5 +1,5 @@
-#ifndef SCHC_Macros_hpp
-#define SCHC_Macros_hpp
+#ifndef SCHC_Node_Macros_hpp
+#define SCHC_Node_Macros_hpp
 
 /* DEBUG Level */
 // uncomment the line of the log level you want to activate

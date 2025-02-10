@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "SCHC_Fragmenter_End_Device.hpp"
+#include "SCHC_Node_Fragmenter.hpp"
 #include "Ticker.h" 
 
 /*** Ticker ***/
@@ -7,7 +7,7 @@ void periodicWakeup();
 Ticker myTicker(periodicWakeup, 30000);  // Periodic callback each 20000 milliseconds
 int counter = 0;
 
-SCHC_Fragmenter_End_Device frag;
+SCHC_Node_Fragmenter frag;
 
 void setup()
 {

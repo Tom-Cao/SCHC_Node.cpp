@@ -1,11 +1,11 @@
-#include "SCHC_Message.hpp"
+#include "SCHC_Node_Message.hpp"
 
-SCHC_Message::SCHC_Message()
+SCHC_Node_Message::SCHC_Node_Message()
 {
 
 }
 
-int SCHC_Message::create_regular_fragment(uint8_t ruleID, uint8_t dtag, uint8_t w, uint8_t fcn, char *payload, int payload_len, char *buffer)
+int SCHC_Node_Message::create_regular_fragment(uint8_t ruleID, uint8_t dtag, uint8_t w, uint8_t fcn, char *payload, int payload_len, char *buffer)
 {
     /* Mask definition */ 
     byte w_mask = 0xC0;
@@ -27,7 +27,7 @@ int SCHC_Message::create_regular_fragment(uint8_t ruleID, uint8_t dtag, uint8_t 
     return (payload_len + 1);
 }
 
-int SCHC_Message::create_ack_request(uint8_t ruleID, uint8_t dtag, uint8_t w, char *buffer)
+int SCHC_Node_Message::create_ack_request(uint8_t ruleID, uint8_t dtag, uint8_t w, char *buffer)
 {
     /* Mask definition */ 
     byte w_mask = 0xC0;
@@ -43,7 +43,7 @@ int SCHC_Message::create_ack_request(uint8_t ruleID, uint8_t dtag, uint8_t w, ch
     return 1;
 }
 
-int SCHC_Message::create_sender_abort(uint8_t ruleID, uint8_t dtag, uint8_t w, char *buffer)
+int SCHC_Node_Message::create_sender_abort(uint8_t ruleID, uint8_t dtag, uint8_t w, char *buffer)
 {
         /* Mask definition */ 
     byte w_mask = 0xC0;
@@ -59,7 +59,7 @@ int SCHC_Message::create_sender_abort(uint8_t ruleID, uint8_t dtag, uint8_t w, c
     return 1;
 }
 
-int SCHC_Message::create_all_1_fragment(uint8_t ruleID, uint8_t dtag, uint8_t w, uint32_t rcs, char *payload, int payload_len, char *buffer)
+int SCHC_Node_Message::create_all_1_fragment(uint8_t ruleID, uint8_t dtag, uint8_t w, uint32_t rcs, char *payload, int payload_len, char *buffer)
 {
     /* SCHC header construction. byte 1 */
     byte w_mask = 0xC0;
@@ -89,7 +89,7 @@ int SCHC_Message::create_all_1_fragment(uint8_t ruleID, uint8_t dtag, uint8_t w,
     return ret;
 }
 
-uint8_t SCHC_Message::get_msg_type(uint8_t protocol, int rule_id, char *msg, int len)
+uint8_t SCHC_Node_Message::get_msg_type(uint8_t protocol, int rule_id, char *msg, int len)
 {
     if(protocol==SCHC_FRAG_LORAWAN)
     {
@@ -109,7 +109,7 @@ uint8_t SCHC_Message::get_msg_type(uint8_t protocol, int rule_id, char *msg, int
     return _msg_type;
 }
 
-uint8_t SCHC_Message::decodeMsg(uint8_t protocol, int rule_id, char *msg, int len, uint8_t** bitmapArray)
+uint8_t SCHC_Node_Message::decodeMsg(uint8_t protocol, int rule_id, char *msg, int len, uint8_t** bitmapArray)
 {
     if(protocol==SCHC_FRAG_LORAWAN && rule_id == SCHC_FRAG_UPDIR_RULE_ID)
     {
@@ -132,7 +132,7 @@ uint8_t SCHC_Message::decodeMsg(uint8_t protocol, int rule_id, char *msg, int le
         else if(rule_id==SCHC_FRAG_UPDIR_RULE_ID && _c==0 && len>9)
         {
             // * Se ha recibido un SCHC Compound ACK (con errores)
-            //Serial.println("SCHC_Message::decodeMsg - Receiving a SCHC Compound ACK with errors");
+            //Serial.println("SCHC_Node_Message::decodeMsg - Receiving a SCHC Compound ACK with errors");
             int n_total_bits    = len*8;                    // en bits
             int n_win           = ceil((n_total_bits - 1)/65);     // window_size + M = 65. Se resta un bit a len debido al bit C.
             //int n_padding_bits  = n_total_bits - 1 - n_win*65;
@@ -175,7 +175,7 @@ uint8_t SCHC_Message::decodeMsg(uint8_t protocol, int rule_id, char *msg, int le
             if(_msg_type == ACK_MODE_ACK_END_WIN || _msg_type == ACK_MODE_ACK_END_SES)
             {    
                 // * Se ha recibido un SCHC ACK (con errores)
-                //Serial.println("SCHC_Message::decodeMsg - Receiving a SCHC ACK with errors");
+                //Serial.println("SCHC_Node_Message::decodeMsg - Receiving a SCHC ACK with errors");
                 int compress_bitmap_len = (len-1)*8 + 5;    // en bits
                 char compress_bitmap[compress_bitmap_len];
 
@@ -218,7 +218,7 @@ uint8_t SCHC_Message::decodeMsg(uint8_t protocol, int rule_id, char *msg, int le
             else if(_msg_type == ACK_MODE_COMPOUND_ACK)
             {
                 // * Se ha recibido un SCHC Compound ACK (con errores)
-                //Serial.println("SCHC_Message::decodeMsg - Receiving a SCHC Compound ACK with errors");
+                //Serial.println("SCHC_Node_Message::decodeMsg - Receiving a SCHC Compound ACK with errors");
 
                 int n_total_bits    = len*8;                        // en bits
                 int n_win           = ceil((n_total_bits - 1)/65);  // window_size + M = 65. Se resta un bit a len debido al bit C.
@@ -265,7 +265,7 @@ uint8_t SCHC_Message::decodeMsg(uint8_t protocol, int rule_id, char *msg, int le
     return 0;
 }
 
-void SCHC_Message::print_msg(uint8_t msgType, char *msg, int len, uint8_t** bitmapArray)
+void SCHC_Node_Message::print_msg(uint8_t msgType, char *msg, int len, uint8_t** bitmapArray)
 {
     if(msgType==SCHC_REGULAR_FRAGMENT_MSG)
     {
@@ -452,7 +452,7 @@ void SCHC_Message::print_msg(uint8_t msgType, char *msg, int len, uint8_t** bitm
 
 }
 
-void SCHC_Message::printBin(uint8_t val)
+void SCHC_Node_Message::printBin(uint8_t val)
 {
     if(val<2)
     {
@@ -496,17 +496,17 @@ void SCHC_Message::printBin(uint8_t val)
     
 }
 
-uint8_t SCHC_Message::get_w()
+uint8_t SCHC_Node_Message::get_w()
 {
     return _w;
 }
 
-std::vector<uint8_t> SCHC_Message::get_w_vector()
+std::vector<uint8_t> SCHC_Node_Message::get_w_vector()
 {
     return _windows_with_error;
 }
 
-uint8_t SCHC_Message::get_c()
+uint8_t SCHC_Node_Message::get_c()
 {
     return _c;
 }

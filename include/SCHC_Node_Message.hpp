@@ -1,14 +1,14 @@
-#ifndef SCHC_Message_hpp
-#define SCHC_Message_hpp
+#ifndef SCHC_Node_Message_hpp
+#define SCHC_Node_Message_hpp
 
-#include "SCHC_Macros.hpp"
+#include "SCHC_Node_Macros.hpp"
 #include <Arduino.h>
 #include <vector>
 
-class SCHC_Message
+class SCHC_Node_Message
 {
     public:
-        SCHC_Message();
+        SCHC_Node_Message();
         int                     create_regular_fragment(uint8_t ruleID, uint8_t dtag, uint8_t w, uint8_t fcn, char *payload, int payload_len, char *buffer);
         int                     create_ack_request(uint8_t ruleID, uint8_t dtag, uint8_t w, char *buffer);
         int                     create_sender_abort(uint8_t ruleID, uint8_t dtag, uint8_t w, char *buffer);

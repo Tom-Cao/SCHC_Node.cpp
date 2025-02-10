@@ -1,14 +1,14 @@
-#include "SCHC_Session_End_Device.hpp"
+#include "SCHC_Node_Session.hpp"
 
-SCHC_Session_End_Device::SCHC_Session_End_Device()
+SCHC_Node_Session::SCHC_Node_Session()
 {
 
 }
 
-uint8_t SCHC_Session_End_Device::initialize(uint8_t protocol, uint8_t direction, uint8_t dTag, SCHC_Stack_L2* stack_ptr)
+uint8_t SCHC_Node_Session::initialize(uint8_t protocol, uint8_t direction, uint8_t dTag, SCHC_Node_Stack_L2* stack_ptr)
 {
 #ifdef MYTRACE
-    Serial.println("SCHC_Session_End_Device::initialize - Entering the function");
+    Serial.println("SCHC_Node_Session::initialize - Entering the function");
 #endif
     _isUsed = false;  // at the beginning, the sessions are not being used
 
@@ -49,15 +49,15 @@ uint8_t SCHC_Session_End_Device::initialize(uint8_t protocol, uint8_t direction,
         _stack = stack_ptr;                     // Pointer to L2 stack
     }
 #ifdef MYTRACE
-    Serial.println("SCHC_Session_End_Device::initialize - Leaving the function");
+    Serial.println("SCHC_Node_Session::initialize - Leaving the function");
 #endif
     return 0;
 }
 
-uint8_t SCHC_Session_End_Device::startFragmentation(char *buffer, int len)
+uint8_t SCHC_Node_Session::startFragmentation(char *buffer, int len)
 {
 #ifdef MYTRACE
-    Serial.println("SCHC_Session_End_Device::startFragmentation - Entering the function");
+    Serial.println("SCHC_Node_Session::startFragmentation - Entering the function");
 #endif
     if(_protocol==SCHC_FRAG_LORAWAN)
     {
@@ -76,7 +76,7 @@ uint8_t SCHC_Session_End_Device::startFragmentation(char *buffer, int len)
         if(len > (pow(2,_m)*_windowSize)*_tileSize)
         {
             char buf[100];
-            sprintf(buf, "SCHC_Session_End_Device::startFragmentation - ERROR: the message is larger than %d tiles ", (int)pow(2,_m)*_windowSize);
+            sprintf(buf, "SCHC_Node_Session::startFragmentation - ERROR: the message is larger than %d tiles ", (int)pow(2,_m)*_windowSize);
             Serial.println(buf);
             return 1;
         }
@@ -86,69 +86,69 @@ uint8_t SCHC_Session_End_Device::startFragmentation(char *buffer, int len)
     uint8_t res = createStateMachine();
     if(res==1)
     {
-        Serial.println("SCHC_Session_End_Device::startFragmentation - ERROR: Unable to create state machine");
+        Serial.println("SCHC_Node_Session::startFragmentation - ERROR: Unable to create state machine");
     }
 
     /* Arrancando maquina de estado con el primer mensaje */
-    SCHC_Ack_on_error* machine = static_cast<SCHC_Ack_on_error*>(_stateMachine);
+    SCHC_Node_Ack_on_error* machine = static_cast<SCHC_Node_Ack_on_error*>(_stateMachine);
     machine->start(buffer, len);
 
 #ifdef MYTRACE
-    Serial.println("SCHC_Session_End_Device::startFragmentation - Leaving the function");
+    Serial.println("SCHC_Node_Session::startFragmentation - Leaving the function");
 #endif
     return 0;
 }
 
-bool SCHC_Session_End_Device::getIsUsed()
+bool SCHC_Node_Session::getIsUsed()
 {
     return this->_isUsed;
 }
 
-void SCHC_Session_End_Device::setIsUsed(bool isUsed)
+void SCHC_Node_Session::setIsUsed(bool isUsed)
 {
     this->_isUsed = isUsed;
 }
 
-void SCHC_Session_End_Device::process_message(char* msg, int len)
+void SCHC_Node_Session::process_message(char* msg, int len)
 {
 #ifdef MYTRACE
-    Serial.println("SCHC_Session_End_Device::process_message - Entering the function");
+    Serial.println("SCHC_Node_Session::process_message - Entering the function");
 #endif
-    SCHC_Ack_on_error* machine = static_cast<SCHC_Ack_on_error*>(_stateMachine);
+    SCHC_Node_Ack_on_error* machine = static_cast<SCHC_Node_Ack_on_error*>(_stateMachine);
     machine->enqueue_message(msg, len);
 }
 
-uint8_t SCHC_Session_End_Device::createStateMachine()
+uint8_t SCHC_Node_Session::createStateMachine()
 {
 #ifdef MYTRACE
-    Serial.println("SCHC_Session_End_Device::createStateMachine - Entering the function");
+    Serial.println("SCHC_Node_Session::createStateMachine - Entering the function");
 #endif
 
     if(_protocol==SCHC_FRAG_LORAWAN && _direction==SCHC_FRAG_UP)
     {
-        _stateMachine = new SCHC_Ack_on_error();    // liberada en linea 146
+        _stateMachine = new SCHC_Node_Ack_on_error();    // liberada en linea 146
 
         /* Inicializando maquina de estado */
-        SCHC_Ack_on_error* machine = static_cast<SCHC_Ack_on_error*>(_stateMachine);
+        SCHC_Node_Ack_on_error* machine = static_cast<SCHC_Node_Ack_on_error*>(_stateMachine);
         machine->init(_ruleID, _dTag, _windowSize, _tileSize, _n, ACK_MODE, _stack, _retransTimer, _maxAckReq);
 
 #ifdef MYINFO
-        Serial.println("SCHC_Session_End_Device::createStateMachine - State machine successfully created, initiated, and started");
+        Serial.println("SCHC_Node_Session::createStateMachine - State machine successfully created, initiated, and started");
 #endif
 
 #ifdef MYTRACE
-        Serial.println("SCHC_Session_End_Device::createStateMachine - Leaving the function");
+        Serial.println("SCHC_Node_Session::createStateMachine - Leaving the function");
 #endif
         return 0;
     }
     return 1;
 }
 
-uint8_t SCHC_Session_End_Device::destroyStateMachine()
+uint8_t SCHC_Node_Session::destroyStateMachine()
 {
     delete this->_stateMachine;
 #ifdef MYINFO
-        Serial.println("SCHC_Session_End_Device::createStateMachine - State machine successfully destroyed");
+        Serial.println("SCHC_Node_Session::createStateMachine - State machine successfully destroyed");
 #endif
     return 0;
 }

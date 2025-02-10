@@ -1,19 +1,19 @@
-#ifndef SCHC_Session_End_Device_hpp
-#define SCHC_Session_End_Device_hpp
+#ifndef SCHC_Node_Session_hpp
+#define SCHC_Node_Session_hpp
 
-#include "SCHC_Macros.hpp"
-#include "SCHC_Ack_on_error.hpp"
-#include "SCHC_State_Machine.hpp"
-#include "SCHC_Stack_L2.hpp"
+#include "SCHC_Node_Macros.hpp"
+#include "SCHC_Node_Ack_on_error.hpp"
+#include "SCHC_Node_State_Machine.hpp"
+#include "SCHC_Node_Stack_L2.hpp"
 #include <Arduino.h>
 #include <vector>
 
 
-class SCHC_Session_End_Device
+class SCHC_Node_Session
 {
     public:
-        SCHC_Session_End_Device();
-        uint8_t initialize(uint8_t protocol, uint8_t direction, uint8_t dTag, SCHC_Stack_L2* stack_ptr);
+        SCHC_Node_Session();
+        uint8_t initialize(uint8_t protocol, uint8_t direction, uint8_t dTag, SCHC_Node_Stack_L2* stack_ptr);
         uint8_t startFragmentation(char *buffer, int len);
         bool    getIsUsed();
         void    setIsUsed(bool isUsed);
@@ -37,8 +37,8 @@ class SCHC_Session_End_Device
         uint8_t _txAttemptsCounter;     // transmission attempt counter
         uint8_t _rxAttemptsCounter;     // reception attempt counter
         int _maxMsgSize;                // Maximum size of a SCHC packet in bytes
-        SCHC_State_Machine*     _stateMachine;
-        SCHC_Stack_L2*          _stack;
+        SCHC_Node_State_Machine*     _stateMachine;
+        SCHC_Node_Stack_L2*          _stack;
         
 };
 

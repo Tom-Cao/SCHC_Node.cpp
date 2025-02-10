@@ -1,14 +1,14 @@
-#include "LoRaWAN_RAK4631.hpp"
-#include "SCHC_Fragmenter_End_Device.hpp"
+#include "SCHC_Node_LoRaWAN_RAK4631.hpp"
+#include "SCHC_Node_Fragmenter.hpp"
 
-SCHC_Fragmenter_End_Device* LoRaWAN_RAK4631::_frag = nullptr;
+SCHC_Node_Fragmenter* SCHC_Node_LoRaWAN_RAK4631::_frag = nullptr;
 
-LoRaWAN_RAK4631::LoRaWAN_RAK4631()
+SCHC_Node_LoRaWAN_RAK4631::SCHC_Node_LoRaWAN_RAK4631()
 {
 
 }
 
-uint8_t LoRaWAN_RAK4631::initialize_stack(void)
+uint8_t SCHC_Node_LoRaWAN_RAK4631::initialize_stack(void)
 {
     /***** Lora and LoRaWAN Initialization *****
      * 1.- Define callbacks and initialize lmh_callback_t object
@@ -159,10 +159,10 @@ uint8_t LoRaWAN_RAK4631::initialize_stack(void)
     return 0;
 }
 
-uint8_t LoRaWAN_RAK4631::send_frame(uint8_t ruleID, char* msg, int len)
+uint8_t SCHC_Node_LoRaWAN_RAK4631::send_frame(uint8_t ruleID, char* msg, int len)
 {
 #ifdef MYTRACE
-    Serial.println("LoRaWAN_RAK4631::send_frame - Entering the function");
+    Serial.println("SCHC_Node_LoRaWAN_RAK4631::send_frame - Entering the function");
 #endif
 
     // ************** Private definitions **************
@@ -217,7 +217,7 @@ uint8_t LoRaWAN_RAK4631::send_frame(uint8_t ruleID, char* msg, int len)
      return 0;
 }
 
-int LoRaWAN_RAK4631::getMtu(bool consider_Fopt)
+int SCHC_Node_LoRaWAN_RAK4631::getMtu(bool consider_Fopt)
 {
     int fOpt = 0;   
     if(consider_Fopt)
@@ -241,44 +241,44 @@ int LoRaWAN_RAK4631::getMtu(bool consider_Fopt)
     return -1;
 }
 
-void LoRaWAN_RAK4631::set_fragmenter(SCHC_Fragmenter_End_Device *frag)
+void SCHC_Node_LoRaWAN_RAK4631::set_fragmenter(SCHC_Node_Fragmenter *frag)
 {
-    LoRaWAN_RAK4631::_frag = frag;
+    SCHC_Node_LoRaWAN_RAK4631::_frag = frag;
 }
 
-void LoRaWAN_RAK4631::lorawan_has_joined_handler(void)
+void SCHC_Node_LoRaWAN_RAK4631::lorawan_has_joined_handler(void)
 {
   Serial.println("Network Joined!");
 }
 
-void LoRaWAN_RAK4631::lorawan_join_failed_handler(void)
+void SCHC_Node_LoRaWAN_RAK4631::lorawan_join_failed_handler(void)
 {
   Serial.println("OTAA join failed!");
   Serial.println("Check your EUI's and Keys's!");
   Serial.println("Check if a Gateway is in range!");
 }
 
-void LoRaWAN_RAK4631::lorawan_rx_handler(lmh_app_data_t *app_data)
+void SCHC_Node_LoRaWAN_RAK4631::lorawan_rx_handler(lmh_app_data_t *app_data)
 {
 #ifdef MYTRACE
-    Serial.println("LoRaWAN_RAK4631::lorawan_rx_handler - Entering function");
+    Serial.println("SCHC_Node_LoRaWAN_RAK4631::lorawan_rx_handler - Entering function");
 #endif    
     char* buff = new char[app_data->buffsize];
     memcpy(buff, app_data->buffer, app_data->buffsize);
     _frag->process_received_message(buff, app_data->buffsize, app_data->port);
 #ifdef MYTRACE
-        Serial.println("LoRaWAN_RAK4631::lorawan_rx_handler - Leaving function");
+        Serial.println("SCHC_Node_LoRaWAN_RAK4631::lorawan_rx_handler - Leaving function");
 #endif
 }
 
-void LoRaWAN_RAK4631::lorawan_confirm_class_handler(DeviceClass_t Class)
+void SCHC_Node_LoRaWAN_RAK4631::lorawan_confirm_class_handler(DeviceClass_t Class)
 {
     char myBuffer[200];
     sprintf(myBuffer, "switch to class %c done\n", "ABC"[Class]);
     Serial.println(myBuffer);
 }
 
-void LoRaWAN_RAK4631::lorawan_unconf_finished(void)
+void SCHC_Node_LoRaWAN_RAK4631::lorawan_unconf_finished(void)
 {
 #ifdef MYTRACE
     Serial.println("TX unconfirmed finished!!");
