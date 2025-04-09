@@ -131,4 +131,4 @@ To deploy code in RAK4631 you must create your workspace with SCHC node code. Fo
 
 > **Note:** We assume you have configured Git source control in VS Code. If you haven't done so yet, click [here](https://code.visualstudio.com/docs/sourcecontrol/overview).
 
-
+TEST
